@@ -61,7 +61,7 @@ gradlew.bat assembleRelease --offline
 | `app/src/main/assets/` | agents / skills / tinygarden / model_allowlist.json 等内置资源 |
 | `app/libs/` | sherpa-onnx 本地 AAR |
 | `gradle/` | wrapper + `libs.versions.toml`（版本目录） |
-| `doc/` | 中文说明文档（架构、构建、界面） |
+| `doc/` | 中文说明文档：00~04=现状/架构/构建/界面/功能状态；`doc/演进设计/`=待开发功能设计基线 |
 | `LICENSE` | Apache 2.0 |
 
 ## 文档入口
@@ -71,6 +71,7 @@ gradlew.bat assembleRelease --offline
 - `doc/02_构建与工具链.md`：构建命令、离线注意事项、JDK/Gradle/依赖位置
 - `doc/03_界面与操作流程.md`：现有哪些功能页面、怎么操作
 - `doc/04_功能清单与实现状态.md`：每项能力做没做、做到哪；未满足项怎么补
+- `doc/演进设计/`：**待开发功能设计基线**（统一入口方案 + 界面规范），开工前先读
 
 > 顶层不再保留 gallery 仓库的 `skills/`、`mcp/`、`model_allowlists/`、`model_allowlist.json`：
 > 它们不被 gradle 构建引用，APK 使用的资源已在 `app/src/main/assets/` 内置副本。详见 `doc/01`。
