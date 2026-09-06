@@ -1,0 +1,261 @@
+/* Copyright 2025 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+syntax = "proto3";
+
+package com.encourage.app.proto;
+
+import "chat_history.proto";
+
+option java_package = "com.encourage.app.proto";
+option java_multiple_files = true;
+
+enum Theme {
+  THEME_UNSPECIFIED = 0;
+
+  // Force to use light theme.
+  THEME_LIGHT = 1;
+
+  // Force to use dark theme.
+  THEME_DARK = 2;
+
+  // Use the system them setting on user's phone.
+  THEME_AUTO = 3;
+}
+
+// 语音引擎来源（M3 / 需求 D1 D3）。
+enum VoiceEngine {
+  // 未指定：等同 SYSTEM。
+  VOICE_ENGINE_UNSPECIFIED = 0;
+  // 安卓系统 TTS（零成本、即开即用，随系统语言支持中文）。
+  VOICE_ENGINE_SYSTEM = 1;
+  // Sherpa-ONNX 离线引擎（中文效果佳、多角色、语速音调可调）。
+  VOICE_ENGINE_SHERPA_ONNX = 2;
+}
+
+message AccessTokenData {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_at_ms = 3;
+}
+
+message ImportedModel {
+  string file_name = 1;
+  int64 file_size = 2;
+
+  oneof config {
+    LlmConfig llm_config = 3;
+  }
+  // Only set for models imported from url.
+  string url = 4;
+}
+
+message LlmConfig {
+  repeated string compatible_accelerators = 1;
+  int32 default_max_tokens = 2;
+  int32 default_topk = 3;
+  float default_topp = 4;
+  float default_temperature = 5;
+  bool support_image = 6;
+  bool support_audio = 7;
+  bool support_tiny_garden = 8;
+  bool support_mobile_actions = 9;
+  bool support_thinking = 10;
+  bool support_speculative_decoding = 11;
+}
+
+// 一套外部大模型 API 配置（M2 / 需求 B1）。
+//
+// 统一采用 OpenAI 兼容协议，因此 DeepSeek、通义千问、Kimi、智谱、OpenAI、
+// 以及本地 Ollama / LM Studio 等都能用同一套字段描述。
+//
+// 字段含义见 ApiProviderRepository 与 ApiPresets 的注释。
+message ApiProviderConfig {
+  // 稳定唯一 id（UUID），用于激活切换与删除，不随重命名变化。
+  string id = 1;
+  // 用户可读的名称，例如「DeepSeek 官方」。
+  string name = 2;
+  // 服务地址，例如 https://api.deepseek.com/v1（不含末尾斜杠）。
+  string base_url = 3;
+  // 鉴权密钥。允许为空（部分本地服务如 Ollama 不需要）。
+  string api_key = 4;
+  // 模型标识，例如 deepseek-chat。
+  string model_id = 5;
+  // 采样温度；0 表示使用服务端默认值。
+  float temperature = 6;
+  // 核采样；0 表示使用服务端默认值。
+  float top_p = 7;
+  // 单次请求最大输出 token 数；0 表示使用服务端默认值。
+  int32 max_tokens = 8;
+  // 是否随请求发送系统提示词。
+  string system_prompt = 9;
+  // 是否启用该配置（停用后不在切换列表中参与路由）。
+  bool enabled = 10;
+}
+
+message Settings {
+  Theme theme = 1;
+  AccessTokenData access_token_data = 2;  // deprecated
+  repeated string text_input_history = 3;
+  repeated ImportedModel imported_model = 4;
+  // Has the app tos been accepted.
+  bool is_tos_accepted = 5;
+  bool has_run_tiny_garden = 6;
+  bool has_seen_benchmark_comparison_help = 7;
+  // Has the Gemma terms of use been accepted.
+  bool is_gemma_terms_accepted = 8;
+
+  repeated string viewed_promo_id = 10;
+  bool disable_firebase_analytics = 11;
+
+  // --- 以下为 Encourage 新增（M2 多模型互联） ---
+
+  // 用户保存的多套外部 API 配置。
+  repeated ApiProviderConfig api_providers = 12;
+  // 当前激活的配置 id；为空表示不使用外部 API。
+  string active_api_provider_id = 13;
+  // 是否使用外部 API 推理。false 时一律走本地端侧模型（隐私优先的默认行为）。
+  bool use_remote_api = 14;
+
+  // --- 以下为 Encourage 新增（M3 语音与自动化） ---
+
+  // 语音引擎来源：SYSTEM = 系统 TTS（默认，零成本）；SHERPA_ONNX = 内置离线模型（多角色）。
+  VoiceEngine voice_engine = 15;
+  // 语速倍率，0.5 ~ 2.0；0 表示使用引擎默认值（未设置过）。
+  float voice_rate = 16;
+  // 音调倍率，0.5 ~ 2.0；0 表示使用引擎默认值（未设置过）。
+  float voice_pitch = 17;
+  // 音色角色 id（见 VoiceRoles）；空表示使用引擎默认角色。离线引擎接入后生效。
+  string voice_role = 18;
+  // 用户创建的定时任务列表（M3 / 需求 E1 E2）。
+  repeated TimedTask timed_tasks = 19;
+  // 本地 API Server 配置（M4 / 需求 B2）。
+  LocalServerConfig local_server = 20;
+}
+
+// 本地 API Server 配置（M4 / 需求 B2）。
+//
+// 在手机上内嵌 HTTP 服务，暴露 OpenAI 兼容的 /v1/chat/completions 端点，
+// 供局域网内其他设备 / 软件调用本机端侧模型。
+message LocalServerConfig {
+  // 是否启用本地 API 服务。
+  bool enabled = 1;
+  // 监听端口；0 表示使用默认端口 8010。
+  int32 port = 2;
+  // 鉴权 Token；空表示不鉴权（仅限本机或可信局域网使用）。
+  string token = 3;
+  // 是否监听所有网卡（0.0.0.0）。false 时仅监听本机回环（127.0.0.1）。
+  bool bind_all_interfaces = 4;
+}
+
+// 一条定时任务（M3 / 需求 E1 E2）。
+//
+// 触发方式：AlarmManager 精确闹钟（需 SCHEDULE_EXACT_ALARM 权限），
+// 触发时发系统通知 + 按语音设置朗读 content（需求 D2 联动）。
+message TimedTask {
+  // 稳定唯一 id（UUID）。
+  string id = 1;
+  // 用户可读的任务名，例如「叫我起床」。
+  string title = 2;
+  // 触发时朗读 / 通知的内容。
+  string content = 3;
+  // 下一次触发的 Unix 毫秒时间戳。
+  int64 trigger_time_ms = 4;
+  // 重复规则：星期位掩码（1=周一 … 64=周日），0 表示仅一次。
+  int32 repeat_days_mask = 5;
+  // 是否启用（暂停后不调度，保留记录）。
+  bool enabled = 6;
+  // 创建时间（Unix 毫秒）。
+  int64 created_at_ms = 7;
+  // 【N5】可选的 AI 提示词。非空时，任务触发后会调用本地或外部 AI 生成一段回复，
+  // 并把 AI 返回的文本作为通知内容（可朗读）。留空则仅用 content 提醒。
+  string ai_prompt = 8;
+}
+
+message McpAuth {
+  message RequestHeader {
+    string header_name = 1;
+    string header_value = 2;
+  }
+
+  message OAuth {}
+
+  oneof auth_method {
+    bool none = 1;
+    RequestHeader request_header = 2;
+    OAuth oauth = 3;
+  }
+}
+
+message UserData {
+  AccessTokenData access_token_data = 1;
+  map<string, string> secrets = 2;
+  repeated ChatSessionProto chat_sessions = 3;
+  // MCP server URL to MCP auth data.
+  map<string, McpAuth> mcp_auths = 4;
+  // Prompt Lab 用户自定义模板选项（见 PromptOptionRepository）。
+  // key   = "<模板类型>|<编辑器 key>"，例如 "REWRITE_TONE|tone"；
+  // value = 该模板下用户新增的选项，多个选项用换行符 \n 分隔。
+  map<string, string> custom_prompt_options = 5;
+}
+
+enum FillMode {
+  FILL_MODE_UNSPECIFIED = 0;
+  FILL_MODE_DISABLED = 1;
+  FILL_MODE_SOLID = 2;
+  FILL_MODE_COLORIZE = 3;
+}
+
+message Point {
+  float x = 1;
+  float y = 2;
+}
+
+message StrokePath {
+  repeated Point point = 1;
+  int32 brush_color = 2;
+  float brush_size = 3;
+  float brush_softness = 4;
+  int32 blur_type = 5;
+}
+
+// A single cutout, used in scrapbook demo.
+message Cutout {
+  // id of the cutout.
+  string id = 1;
+
+  // Rotation degree applied to the cutout.
+  int32 rotation_degree = 2;
+
+  // The width of the border.
+  int32 border_width = 3;
+
+  // The color of the border.
+  int32 border_color = 4;
+
+  // The fill color.
+  int32 fill_color = 5;
+
+  // The fill mode.
+  FillMode fill_mode = 6;
+
+  // Doodle stroke paths.
+  repeated StrokePath doodle_stroke = 7;
+}
+
+// A collection of cutout, used in scrapbook demo.
+message CutoutCollection {
+  repeated Cutout cutout = 1;
+}

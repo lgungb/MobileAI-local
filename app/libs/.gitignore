@@ -1,0 +1,3 @@
+# 瑞芯微 NPU 专用版（librknnrt.so），仅适用于 Rockchip 平台。
+# 本工程目标是高通骁龙（SM8750，一加 Ace 6），用不上，忽略避免误提交增大仓库。
+*-rknn.aar

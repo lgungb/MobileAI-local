@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Encourage 启动屏图标（静态矢量）。
+  【功能说明】系统启动画面（SplashScreen）中央显示的应用标识，
+  原谷歌星形动画已替换为 Encourage 品牌图形（上扬箭头 + 星火）。
+  【使用位置】values/themes.xml 与 values-night/themes.xml 的
+  windowSplashScreenAnimatedIcon 属性。
+  【设计说明】432dp 视口，图形居中于安全区，白色线条适配各主题背景。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="432dp"
+    android:height="432dp"
+    android:viewportWidth="432"
+    android:viewportHeight="432">
+    <!-- 上升箭头（432 = 108 x 4，坐标按 4 倍缩放） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M216 144 L280 208 L244 208 L244 300 L188 300 L188 208 L152 208 Z" />
+    <!-- 四角星火 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M304 100 L312 120 L332 128 L312 136 L304 156 L296 136 L276 128 L296 120 Z" />
+</vector>

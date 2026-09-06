@@ -1,0 +1,1021 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<resources>
+  <string name="about_this_update" translatable="true" description="Title of the alert dialog that shows information about a model update. [CHAR_LIMIT=19]">关于本次更新</string>
+  <string name="all" translatable="true" description="Label for selecting or filtering all items (e.g., all models, all cutouts). [CHAR_LIMIT=5]">全部</string>
+  <string name="add" translatable="true" description="Button label to add a new item, such as a skill or server. [CHAR_LIMIT=5]">添加</string>
+  <string name="added" translatable="true" description="Label on a button indicating that an item (like a skill) has already been added. [CHAR_LIMIT=7]">已添加</string>
+  <string name="add_audio" translatable="true" description="Button label to add an audio input to the chat. [CHAR_LIMIT=8]">+音频</string>
+  <string name="aicore_access_panel_title" translatable="true" description="Informational message indicating that the user does not have access to the model yet. [CHAR_LIMIT=85]">您暂时无法访问此模型，请按步骤操作，完成后返回。</string>
+  <string name="aicore_access_panel_button" translatable="true" description="Button label to open a guide on how to get access to AICore. [CHAR_LIMIT=12]">打开指南</string>
+  <string name="aicore_image_limit_message" translatable="true" description="Warning message shown when the user tries to add more than 1 image to a chat session. [CHAR_LIMIT=101]">当前模型每次对话仅支持1张图片。如需询问其他图片，请新建对话。</string>
+  <string name="model_not_support_image_message" translatable="true" description="Error message shown when the user tries to input an image to a model that doesn't support it. [CHAR_LIMIT=49]">当前模型不支持图片输入。</string>
+  <string name="model_not_support_audio_message" translatable="true" description="Error message shown when the user tries to input audio to a model that doesn't support it. [CHAR_LIMIT=49]">当前模型不支持音频输入。</string>
+  <string name="image_limit_ignored_message" translatable="true" description="Toast message indicating some images were ignored due to limit. [CHAR_LIMIT=60]">部分图片因数量限制已被忽略。</string>
+  <string name="aichat_initializing_title" translatable="true" description="Status indicator when initializing model. [CHAR_LIMIT=18]">正在初始化模型</string>
+  <string name="aichat_initializing_content" translatable="true" description="Loading message shown while a chat or translator session is initializing. [CHAR_LIMIT=41]">请稍候，最长可能需要1分钟</string>
+  <string name="app_intro" translatable="true" description="Introduction text shown on the home screen. [CHAR_LIMIT=50]">发现端侧 AI 的强大能力，完全私有且离线</string>
+  <string name="app_name" translatable="false">Encourage</string>
+  <string name="app_name_first_part" translatable="false">En</string>
+  <string name="app_name_second_part" translatable="false">courage</string>
+  <string name="askimage_emptystate_title" translatable="false">Ask Image</string>
+  <string name="askimage_emptystate_content" translatable="true" description="Instructions shown when starting a chat with image input, explaining how to add images (up to 10). [CHAR_LIMIT=120]">点击下方 + 号添加图片（每次对话最多10张），然后输入提示词即可提问！</string>
+  <string name="askimage_emptystate_content_aicore" translatable="true" description="Instructions shown when starting a chat with image input for AICore models, explaining how to add a single image. [CHAR_LIMIT=118]">点击下方 + 号添加图片（每次对话最多1张），然后输入提示词即可提问！</string>
+  <string name="askaudio_emptystate_title" translatable="false">Audio Scribe</string>
+  <string name="askaudio_emptystate_content" translatable="true" description="Instructions shown when starting a chat with audio input, explaining how to add a clip. [CHAR_LIMIT=139]">点击下方 + 号添加音频片段（限1段，最长30秒），然后输入提示词进行转录或翻译！</string>
+  <string name="gallery_news_notification_title" translatable="true" description="Default title for push notifications about gallery news. [CHAR_LIMIT=14]">Gallery 资讯</string>
+  <string name="baseline" translatable="true" description="Label for a button or chip to set a benchmark run as the comparison baseline. [CHAR_LIMIT=10]">基准</string>
+  <string name="basic_info" translatable="true" description="Header for a section showing basic information about a benchmark run. [CHAR_LIMIT=12]">基本信息</string>
+  <string name="benchmark" translatable="true" description="Label or title referring to the benchmark functionality. [CHAR_LIMIT=11]">性能测试</string>
+  <string name="benchmark_comparison_help_title" translatable="true" description="Title of the help dialog explaining benchmark comparisons. [CHAR_LIMIT=31]">如何对比性能测试结果</string>
+  <string name="benchmark_comparison_help_content" translatable="true" description="Detailed instructions on how to compare benchmark results. [CHAR_LIMIT=227]">点击任意结果卡片上的「基准」标签，将该次测试设为对比基准。系统会自动计算并显示其他所有结果卡片的百分比差异。</string>
+  <string name="benchmark_model" translatable="true" description="Title of the screen where users configure and run benchmarks. [CHAR_LIMIT=17]">模型性能测试</string>
+  <string name="benchmark_results" translatable="true" description="Title of the screen that displays benchmark results. [CHAR_LIMIT=19]">性能测试结果</string>
+  <string name="benchmark_no_results" translatable="true" description="Message shown when there are no benchmark results to display. [CHAR_LIMIT=22]">暂无性能测试结果</string>
+  <string name="benchmark_tokens_limit_message" translatable="true" description="Warning message explaining token limits for LLM benchmarking. [CHAR_LIMIT=111]">请确保预填充和解码 token 之和不超过模型的最大 token 限制（%1$d vs %2$d）</string>
+  <string name="best_overall" translatable="true" description="Badge label indicating a model is the best overall choice. [CHAR_LIMIT=14]">综合最佳</string>
+  <string name="model_list_experimental_label" translatable="true" description="Label indicating a model is experimental. [CHAR_LIMIT=14]">实验性</string>
+  <string name="cancel" translatable="true" description="Common button label to cancel the current action or close a dialog. [CHAR_LIMIT=8]">取消</string>
+  <string name="category_unlabeled" translatable="true" description="Category label for models that do not have a specific category. [CHAR_LIMIT=11]">未分类</string>
+  <string name="category_llm" translatable="true" description="Category label for Large Language Models. [CHAR_LIMIT=5]">LLM</string>
+  <string name="category_agents" translatable="true" description="Category label for AI Agents. [CHAR_LIMIT=8]">智能体</string>
+  <string name="category_classical_ml" translatable="true" description="Category label for Classical Machine Learning models. [CHAR_LIMIT=14]">传统机器学习</string>
+  <string name="category_experimental" translatable="true" description="Category label for experimental features or models. [CHAR_LIMIT=14]">实验性</string>
+  <string name="chat_textinput_placeholder" translatable="true" description="Placeholder text in the chat input text field. [CHAR_LIMIT=15]">输入消息…</string>
+  <string name="chat_you" translatable="true" description="Label indicating a message was sent by the user. [CHAR_LIMIT=5]">你</string>
+  <string name="chat_llm_agent_name" translatable="true" description="Display name for the LLM agent in chat. [CHAR_LIMIT=5]">LLM</string>
+  <string name="show_thinking" translatable="true" description="Label for a button to show the model's reasoning/thinking steps. [CHAR_LIMIT=15]">显示思考过程</string>
+  <string name="checking_access" translatable="true" description="Message shown while checking if the user has access to a model. [CHAR_LIMIT=20]">正在检查访问权限…</string>
+  <string name="close" translatable="true" description="Common button label to close a screen or dialog. [CHAR_LIMIT=7]">关闭</string>
+  <string name="collapse_all" translatable="true" description="Button label to collapse all expanded sections. [CHAR_LIMIT=14]">全部收起</string>
+  <string name="discard" translatable="true" description="Button label to discard changes. [CHAR_LIMIT=9]">放弃</string>
+  <string name="discard_changes_dialog_title" translatable="true" description="Title of confirmation dialog for discarding unsaved changes. [CHAR_LIMIT=18]">放弃更改？</string>
+  <string name="discard_changes_dialog_content" translatable="true" description="Content of confirmation dialog for discarding unsaved changes. [CHAR_LIMIT=66]">您有未保存的更改，确定要放弃吗？</string>
+  <string name="delete_benchmark_result_dialog_title" translatable="true" description="Title of confirmation dialog for deleting benchmark results. [CHAR_LIMIT=25]">删除性能测试结果</string>
+  <string name="delete_benchmark_result_dialog_content" translatable="true" description="Content of confirmation dialog for deleting benchmark results. [CHAR_LIMIT=55]">确定要删除该性能测试结果吗？</string>
+  <string name="error" translatable="true" description="Title for dialogs showing error messages. [CHAR_LIMIT=7]">错误</string>
+  <string name="confirm_delete_model_dialog_title" translatable="true" description="Title of confirmation dialog for deleting a downloaded model. [CHAR_LIMIT=17]">删除下载</string>
+  <string name="confirm_delete_model_dialog_content" translatable="true" description="Content of confirmation dialog for deleting a downloaded model. Contains model name placeholder. [CHAR_LIMIT=60]">确定要删除已下载的模型「%s」吗？</string>
+  <string name="conversation_reset_message" translatable="true" description="Chat notification message indicating the conversation context was reset. [CHAR_LIMIT=24]">对话已重置</string>
+  <string name="engin_reset_message" translatable="true" description="Chat notification message indicating the underlying model engine was reset. [CHAR_LIMIT=18]">引擎已重置</string>
+  <string name="chat_agent_agent_name" translatable="true" description="Display name for the AI Agent in chat. [CHAR_LIMIT=7]">智能体</string>
+  <string name="chat_generic_agent_name" translatable="true" description="Display name for the model in chat. [CHAR_LIMIT=7]">模型</string>
+  <string name="chat_generic_result_name" translatable="true" description="Label indicating the result of a chat operation. [CHAR_LIMIT=8]">结果</string>
+  <string name="clear" translatable="true" description="Content description for a button to clear text input. [CHAR_LIMIT=7]">清除</string>
+  <string name="collect" translatable="true" description="Action label to collect items. [CHAR_LIMIT=9]">收集</string>
+  <string name="color" translatable="true" description="Label for color picker or color configuration. [CHAR_LIMIT=7]">颜色</string>
+  <string name="config_dialog_tab_model_configs" translatable="true" description="Tab label for model-specific configurations. [CHAR_LIMIT=15]">模型配置</string>
+  <string name="config_dialog_tab_system_prompt" translatable="true" description="Tab label for system prompt configuration. [CHAR_LIMIT=15]">系统提示词</string>
+  <string name="config_dialog_title" translatable="true" description="Title of the settings/configuration dialog. [CHAR_LIMIT=16]">配置</string>
+  <string name="benchmark_config_dialog_title" translatable="true" description="Title of the benchmark configuration dialog. [CHAR_LIMIT=19]">性能测试配置</string>
+  <string name="start" translatable="true" description="Button label to start benchmarking. [CHAR_LIMIT=7]">开始</string>
+  <string name="continue_button_label" translatable="true" description="Button label to proceed to next step. [CHAR_LIMIT=10]">继续</string>
+  <string name="conversation_history" translatable="true" description="Title of the conversation history panel. [CHAR_LIMIT=22]">对话历史</string>
+  <string name="copy" translatable="true" description="Button label or action to copy text or data to clipboard. [CHAR_LIMIT=6]">复制</string>
+  <string name="create" translatable="true" description="Action label to create a new item. [CHAR_LIMIT=8]">创建</string>
+  <string name="delete" translatable="true" description="Button label or action to delete an item. [CHAR_LIMIT=8]">删除</string>
+  <string name="description_required" translatable="true" description="Label for a required description input field. [CHAR_LIMIT=14]">描述*</string>
+  <string name="disabled" translatable="true" description="Option label indicating a feature or mode is turned off. [CHAR_LIMIT=10]">已禁用</string>
+  <string name="dismiss" translatable="true" description="Button label to dismiss a help banner or promotional screen. [CHAR_LIMIT=9]">知道了</string>
+  <string name="done" translatable="true" description="Button label to confirm completion of a task. [CHAR_LIMIT=6]">完成</string>
+  <string name="download" translatable="true" description="Button label to start downloading a model. [CHAR_LIMIT=10]">下载</string>
+  <string name="downloaded_size" translatable="true" description="Label showing how much data has been downloaded (e.g. '1.2 GB downloaded'). [CHAR_LIMIT=17]">已下载 %1$s</string>
+  <string name="drawer_settings_label" translatable="true" description="Label for the settings item in the navigation drawer. [CHAR_LIMIT=10]">设置</string>
+  <string name="drawer_settings_description" translatable="true" description="Description for the settings item in the navigation drawer. [CHAR_LIMIT=29]">管理应用设置</string>
+  <string name="drawer_models_label" translatable="true" description="Label for the models item in the navigation drawer. [CHAR_LIMIT=8]">模型</string>
+  <string name="drawer_models_description" translatable="true" description="Description for the models item in the navigation drawer. [CHAR_LIMIT=35]">浏览、试用和测试模型</string>
+  <string name="drawer_notifications_label" translatable="true" description="Label for the notifications item in the navigation drawer. [CHAR_LIMIT=15]">通知</string>
+  <string name="drawer_notifications_description" translatable="true" description="Description for the notifications item in the navigation drawer. [CHAR_LIMIT=30]">查看已安排的通知</string>
+  <string name="drawer_group_main" translatable="true" description="Title of the main group in the navigation drawer. [CHAR_LIMIT=10]">主要</string>
+  <string name="drawer_group_smart" translatable="true" description="Title of the smart features group in the navigation drawer. [CHAR_LIMIT=12]">智能</string>
+  <string name="drawer_group_system" translatable="true" description="Title of the system group in the navigation drawer. [CHAR_LIMIT=12]">系统</string>
+  <string name="drawer_chat_label" translatable="true" description="Label for the AI chat item in the navigation drawer. [CHAR_LIMIT=12]">AI 对话</string>
+  <string name="drawer_chat_description" translatable="true" description="Description for the AI chat item in the navigation drawer. [CHAR_LIMIT=30]">与端侧大模型自由对话</string>
+  <string name="drawer_agent_chat_label" translatable="true" description="Label for the agent chat item in the navigation drawer. [CHAR_LIMIT=14]">Agent 对话</string>
+  <string name="drawer_agent_chat_description" translatable="true" description="Description for the agent chat item in the navigation drawer. [CHAR_LIMIT=34]">智能体与技能工具调用</string>
+  <string name="drawer_prompt_lab_label" translatable="true" description="Label for the prompt lab item in the navigation drawer. [CHAR_LIMIT=14]">提示词实验室</string>
+  <string name="drawer_prompt_lab_description" translatable="true" description="Description for the prompt lab item in the navigation drawer. [CHAR_LIMIT=34]">尝试不同的提示词写法</string>
+  <string name="drawer_task_center_label" translatable="true" description="Label for the task center item in the navigation drawer. [CHAR_LIMIT=14]">任务中心</string>
+  <string name="drawer_task_center_description" translatable="true" description="Description for the task center item in the navigation drawer. [CHAR_LIMIT=32]">定时提醒与每日鼓励</string>
+  <string name="drawer_help_label" translatable="true" description="Label for the help center item in the navigation drawer. [CHAR_LIMIT=14]">帮助中心</string>
+  <string name="drawer_help_description" translatable="true" description="Description for the help center item in the navigation drawer. [CHAR_LIMIT=32]">使用指南与常见问题</string>
+  <string name="home_help_card_title" translatable="true" description="Title of the help hint card on the home page. [CHAR_LIMIT=28]">第一次使用 Encourage？</string>
+  <string name="home_help_card_subtitle" translatable="true" description="Subtitle of the help hint card on the home page. [CHAR_LIMIT=40]">三步开始你的首次对话</string>
+  <string name="home_help_card_cta" translatable="true" description="Call to action label of the help hint card. [CHAR_LIMIT=20]">查看使用指南</string>
+  <string name="help_center_title" translatable="true" description="Title of the help center dialog. [CHAR_LIMIT=16]">帮助中心</string>
+  <string name="help_quick_title" translatable="true" description="Help section title for quick start. [CHAR_LIMIT=16]">快速上手</string>
+  <string name="help_quick_body" translatable="true" description="Help section body for quick start.">\n1. 打开「模型管理」，下载一个模型（如 Gemma 4 E2B）。\n2. 回到首页，点击「AI 对话」。\n3. 输入消息即可开始聊天。\n\n首次使用需要联网下载模型文件，之后所有对话完全离线运行。</string>
+  <string name="help_agent_title" translatable="true" description="Help section title for agent chat. [CHAR_LIMIT=16]">Agent 对话</string>
+  <string name="help_agent_body" translatable="true" description="Help section body for agent chat.">在 Agent 对话中，点击输入框旁的智能体按钮可切换预设 Agent（鼓励教练、翻译、编程助手、学习导师），也可导入自定义 Agent JSON 文件。对话中智能体会自动调用技能（Skill）与 MCP 工具。</string>
+  <string name="help_cloud_title" translatable="true" description="Help section title for cloud API. [CHAR_LIMIT=16]">云端模型</string>
+  <string name="help_cloud_body" translatable="true" description="Help section body for cloud API.">在「设置」中配置 OpenAI 兼容的服务地址与 API 密钥后，首页会出现云端模型，无需下载即可直接对话。密钥在本机使用硬件级加密保存，不会明文落盘。</string>
+  <string name="help_server_title" translatable="true" description="Help section title for local server. [CHAR_LIMIT=16]">本地 API 服务器</string>
+  <string name="help_server_body" translatable="true" description="Help section body for local server.">在「设置」中开启本地服务器后，同一局域网内的电脑或脚本可以通过 HTTP 调用本机模型（OpenAI 兼容接口），并可用 /v1/skills 查询设备上的技能能力。</string>
+  <string name="help_task_title" translatable="true" description="Help section title for task center. [CHAR_LIMIT=16]">任务中心</string>
+  <string name="help_task_body" translatable="true" description="Help section body for task center.">在侧边抽屉或「设置」中创建定时任务，到点后会推送通知并朗读鼓励内容。支持按星期重复，例如每天早上 8 点的一句加油。</string>
+  <string name="help_benchmark_title" translatable="true" description="Help section title for models and benchmark. [CHAR_LIMIT=16]">模型与跑分</string>
+  <string name="help_benchmark_body" translatable="true" description="Help section body for models and benchmark.">「模型管理」中可浏览全部模型；部分模型支持性能跑分（Benchmark），可以对比不同模型在你设备上的速度。如果对话很慢，建议先试用更小的模型。</string>
+  <string name="help_faq_title" translatable="true" description="Help section title for FAQ. [CHAR_LIMIT=16]">常见问题</string>
+  <string name="help_faq_body" translatable="true" description="Help section body for FAQ.">\n模型下载失败？请检查网络后重试，或换用更小的模型。\n对话很慢？大模型对设备性能要求更高，建议先试小参数模型。\n数据安全吗？端侧模型的所有对话都保留在本机。</string>
+  <string name="help_privacy_title" translatable="true" description="Help section title for privacy. [CHAR_LIMIT=16]">隐私说明</string>
+  <string name="help_privacy_body" translatable="true" description="Help section body for privacy.">端侧模型的对话数据不会上传到任何服务器；只有当你配置了云端模型后，对应请求才会发送到你自己指定的服务地址。</string>
+  <string name="notifications_title" translatable="true" description="Title of the notifications screen. [CHAR_LIMIT=15]">通知</string>
+  <string name="notifications_empty_state" translatable="true" description="Message shown when there are no scheduled notifications. [CHAR_LIMIT=28]">暂无已安排的通知</string>
+  <string name="notifications_delete_dialog_title" translatable="true" description="Title of confirmation dialog for deleting a notification. [CHAR_LIMIT=21]">删除通知</string>
+  <string name="notifications_delete_dialog_content" translatable="true" description="Content of confirmation dialog for deleting a notification. Contains notification title placeholder. [CHAR_LIMIT=66]">确定要删除已安排的通知「%s」吗？</string>
+  <string name="notifications_time_label" translatable="true" description="Label showing the scheduled time for a notification. [CHAR_LIMIT=10]">时间：%s</string>
+  <string name="notifications_date_label" translatable="true" description="Label showing the scheduled date for a notification. [CHAR_LIMIT=10]">日期：%s</string>
+  <string name="notifications_repeat_daily" translatable="true" description="Label indicating a notification repeats daily. [CHAR_LIMIT=7]">每天</string>
+  <string name="notifications_repeat_one_time" translatable="true" description="Label indicating a notification is scheduled for one-time delivery. [CHAR_LIMIT=10]">一次性</string>
+  <string name="edit" translatable="true" description="Button label or action to edit an item. [CHAR_LIMIT=6]">编辑</string>
+  <string name="edit_secret" translatable="true" description="Title of dialog to edit a skill's API key/secret. [CHAR_LIMIT=13]">编辑密钥</string>
+  <string name="enter_instruction" translatable="true" description="Placeholder text for instructing the model or agent. [CHAR_LIMIT=19]">输入指令</string>
+  <string name="expand_all" translatable="true" description="Button label to expand all collapsed sections. [CHAR_LIMIT=12]">全部展开</string>
+  <string name="failed_to_save" translatable="true" description="Title of error dialog shown when saving a skill fails. [CHAR_LIMIT=16]">保存失败</string>
+  <string name="flashlight_off_message" translatable="true" description="Chat message response confirming the flashlight was turned off. [CHAR_LIMIT=33]">已关闭手电筒。</string>
+  <string name="flashlight_on_message" translatable="true" description="Chat message response confirming the flashlight was turned on. [CHAR_LIMIT=32]">已打开手电筒。</string>
+  <string name="function_name" translatable="true" description="Label for the name of a function called by the agent. [CHAR_LIMIT=15]">函数名称</string>
+  <string name="generate_and_copy" translatable="true" description="Button label to generate a prompt and copy it to clipboard. [CHAR_LIMIT=19]">生成并复制</string>
+  <string name="grant_permissions" translatable="true" description="Button label to request required system permissions. [CHAR_LIMIT=19]">授予权限</string>
+  <string name="grant_record_audio_permission" translatable="true" description="Button or dialog text to request audio recording permission from the user. [CHAR_LIMIT=31]">授予录音权限</string>
+  <string name="hold_down_to_talk" translatable="true" description="Instruction label on the voice recording button. [CHAR_LIMIT=20]">按住说话</string>
+  <string name="input_history" translatable="true" description="Title or header for a section showing previous user inputs. [CHAR_LIMIT=15]">输入历史</string>
+  <string name="instructions" translatable="true" description="Label for a text input field where the user enters instructions or behavior guidelines for a custom skill. [CHAR_LIMIT=14]">指令</string>
+  <string name="introducing" translatable="true" description="Heading text used to introduce a new model or feature (e.g., 'Introducing Gemma 4'). [CHAR_LIMIT=13]">全新推出</string>
+  <string name="promo_screen_body" translatable="true" description="Promo splash body describing the Encourage experience. [CHAR_LIMIT=120]">私有、端侧的 AI，直接在设备上运行前沿级智能——不上云、不追踪。</string>
+  <string name="invalid_response" translatable="true" description="Error message displayed when the model's output is invalid or cannot be parsed. [CHAR_LIMIT=18]">无效响应</string>
+  <string name="learn_more" translatable="true" description="Hyperlink text that directs users to more information and the model's license terms. [CHAR_LIMIT=34]">了解更多并查看模型许可</string>
+  <string name="listening" translatable="true" description="Status message indicating the app is actively listening to voice input for dictation. [CHAR_LIMIT=14]">正在聆听…</string>
+  <string name="litert_community_label" translatable="true" description="Hyperlink text pointing to the LiteRT community webpage. [CHAR_LIMIT=18]">LiteRT 社区</string>
+  <string name="loading_model_list" translatable="true" description="Progress message displayed while the application fetches the list of available models. [CHAR_LIMIT=23]">正在加载模型列表…</string>
+  <string name="logs_viewer_filter_text_input_placeholder" translatable="true" description="Placeholder text in a search/filter input field within the logs viewer screen. [CHAR_LIMIT=13]">筛选日志</string>
+  <string name="logs_viewer_title" translatable="true" description="Title of the screen that displays application or model logs. [CHAR_LIMIT=13]">日志查看器</string>
+  <string name="logs_viewer_no_matching_logs" translatable="true" description="Message shown when the user's filter query matches no log entries in the log viewer. [CHAR_LIMIT=26]">没有匹配的日志</string>
+  <string name="memory_warning_content" translatable="true" description="Warning message in a dialog explaining that the selected model might exceed the device's RAM, potentially causing crashes. [CHAR_LIMIT=156]">您选择的模型可能超出设备内存，可能导致应用崩溃。为获得最佳体验，建议尝试更小的模型。</string>
+  <string name="memory_warning_proceed_anyway" translatable="true" description="Button label in the memory warning dialog to ignore the warning and load the model anyway. [CHAR_LIMIT=16]">仍然继续</string>
+  <string name="memory_warning_title" translatable="true" description="Title of the warning dialog regarding high memory usage by a model. [CHAR_LIMIT=16]">内存警告</string>
+  <string name="max_tokens_warning_message" translatable="true" description="Warning message displayed when the user sets a high max token limit, indicating potential app instability. [CHAR_LIMIT=62]">将 max tokens 设置超过 10000 可能导致应用不稳定。</string>
+  <string name="model_is_initializing_msg" translatable="true" description="Status message showing that the machine learning model is currently loading or preparing. [CHAR_LIMIT=21]">正在初始化模型…</string>
+  <string name="model_list_imported_models_title" translatable="true" description="Section header in the model list for models that have been imported locally by the user. [CHAR_LIMIT=17]">已导入模型</string>
+  <plurals name="model_list_number_of_models_available" translatable="true">
+    <item quantity="one">%d 个模型可用</item>
+    <item quantity="other">%d 个模型可用</item>
+  </plurals>
+  <string name="model_list_recommended_models_title" translatable="true" description="Section header in the model list for models recommended for download. [CHAR_LIMIT=20]">推荐模型</string>
+  <string name="model_manager" translatable="true" description="Title of the screen where users can manage (download, delete, import) models. [CHAR_LIMIT=15]">模型管理</string>
+  <string name="model_manager_select_task_title" translatable="true" description="Header instructing the user to choose a specific task or use case to try with the models. [CHAR_LIMIT=26]">选择要试用的场景</string>
+  <string name="model_not_downloaded_msg" translatable="true" description="Status message indicating a model must be downloaded before it can be used. [CHAR_LIMIT=26]">模型尚未下载</string>
+  <string name="name" translatable="true" description="General label for a name field (e.g., config setting name or custom skill name). [CHAR_LIMIT=6]">名称</string>
+  <string name="no_cutouts_collected" translatable="true" description="Message shown when the user has not yet created or saved any image cutouts in the scrapbook feature. [CHAR_LIMIT=22]">暂无已收集的抠图</string>
+  <string name="notification_content_fail" translatable="true" description="Notification body text containing the model name when a model download fails. [CHAR_LIMIT=31]">模型「%s」下载失败</string>
+  <string name="notification_content_success" translatable="true" description="Notification body text containing the model name when a model download succeeds. [CHAR_LIMIT=32]">模型「%s」已下载完成</string>
+  <string name="notification_title_fail" translatable="true" description="Notification title for a failed model download. [CHAR_LIMIT=23]">模型下载失败</string>
+  <string name="notification_title_success" translatable="true" description="Notification title for a successful model download. [CHAR_LIMIT=26]">模型下载成功</string>
+  <string name="ok" translatable="true" description="General confirmation button label. [CHAR_LIMIT=4]">确定</string>
+  <string name="paste_from_clipboard" translatable="true" description="Button label or action text to paste content from the device clipboard. [CHAR_LIMIT=22]">从剪贴板粘贴</string>
+  <string name="pick_from_album" translatable="true" description="Menu option to select an image from the device's photo gallery. [CHAR_LIMIT=17]">从相册选择</string>
+  <string name="preview" translatable="true" description="Label for a preview section, showing how the current edit looks (e.g., brush preview). [CHAR_LIMIT=9]">预览</string>
+  <string name="release_to_send" translatable="true" description="Instruction text telling the user to release the hold button to submit their voice input. [CHAR_LIMIT=17]">松开发送</string>
+  <string name="replace" translatable="true" description="Button label in a confirmation dialog to overwrite or replace an existing skill. [CHAR_LIMIT=9]">替换</string>
+  <string name="results" translatable="true" description="Header for the section displaying benchmark performance results. [CHAR_LIMIT=9]">结果</string>
+  <string name="reset" translatable="true" description="Button label to reset the current task or model engine state. [CHAR_LIMIT=7]">重置</string>
+  <string name="reset_note" translatable="true" description="Informational note in a dialog explaining that the reset action only affects the model engine, not game progress. [CHAR_LIMIT=88]">点击「重置」仅重置 LiteRT-LM 引擎，不会影响游戏进度。</string>
+  <string name="resetting_engine" translatable="true" description="Status message shown while the underlying model engine is being reinitialized. [CHAR_LIMIT=21]">正在重置引擎…</string>
+  <string name="restore_default" translatable="true" description="Button label to restore default model configurations. [CHAR_LIMIT=15]">恢复默认</string>
+  <string name="reinitializing_description" translatable="true" description="Supporting text explaining that resetting the engine does not lose game progress. [CHAR_LIMIT=37]">不会影响游戏进度</string>
+  <string name="run" translatable="true" description="Button label to start running or testing a custom skill. [CHAR_LIMIT=5]">运行</string>
+  <string name="running" translatable="true" description="Status indicator showing that a model or process is currently active and executing. [CHAR_LIMIT=12]">运行中…</string>
+  <plurals name="runs" translatable="true">
+    <item quantity="one">%d 次运行</item>
+    <item quantity="other">%d 次运行</item>
+  </plurals>
+  <string name="run_again" translatable="true" description="Button label to resubmit a query or rerun a command in the chat. [CHAR_LIMIT=11]">重新运行</string>
+  <string name="run_benchmark" translatable="true" description="Action label to start performance benchmarking of a model. [CHAR_LIMIT=15]">运行性能测试</string>
+  <string name="run_benchmark_confirmation_msg" translatable="true" description="Dialog message asking for confirmation before starting a long benchmark process. [CHAR_LIMIT=113]">此过程通常需要几分钟，开始后无法中断。是否继续？</string>
+  <string name="running_benchmark_msg" translatable="true" description="Status message displayed while model benchmarking is in progress. [CHAR_LIMIT=28]">正在运行模型性能测试…</string>
+  <string name="save" translatable="true" description="Button label to save an item (e.g., image, collage, or skill changes). [CHAR_LIMIT=6]">保存</string>
+  <string name="secret" translatable="true" description="Label indicating a value or field is a secret key or sensitive credential. [CHAR_LIMIT=8]">密钥</string>
+  <string name="select_downloaded_model" translatable="true" description="Title of a dropdown/dialog to choose from models already downloaded for benchmarking. [CHAR_LIMIT=27]">选择已下载的模型</string>
+  <string name="select_model" translatable="true" description="Title of a dropdown/dialog to select a model (e.g., for viewing benchmark results). [CHAR_LIMIT=16]">选择模型</string>
+  <string name="selected_count" translatable="true" description="Label showing the count of selected items (e.g., '5 selected'). [CHAR_LIMIT=13]">已选 %d 项</string>
+  <string name="settings_dialog_tos_title" translatable="true" description="Header for the Terms of Service section in the Settings dialog. [CHAR_LIMIT=18]">服务条款</string>
+  <string name="settings_dialog_view_app_terms_of_service" translatable="true" description="Button label to open and read the application's terms of service. [CHAR_LIMIT=27]">查看应用服务条款</string>
+  <string name="settings_dialog_gemma_prohibited_use_policy" translatable="true" description="Link text pointing to the Gemma model's prohibited use policy document. [CHAR_LIMIT=29]">Gemma 禁止使用政策</string>
+  <string name="settings_dialog_firebase_analytics_title" translatable="true" description="Title for the settings toggle control to opt-in/out of analytics tracking. [CHAR_LIMIT=20]">Firebase 统计</string>
+  <string name="settings_dialog_firebase_analytics_description" translatable="true" description="Description for the Firebase Analytics toggle explaining that it helps improve the app. [CHAR_LIMIT=49]">发送使用数据以帮助改进 AI Edge Gallery</string>
+  <string name="share" translatable="true" description="Button label to share content (images, text) via other apps. [CHAR_LIMIT=7]">分享</string>
+  <string name="slide_up_to_cancel" translatable="true" description="Instruction text telling the user they can slide their finger up to cancel voice recording. [CHAR_LIMIT=20]">上滑取消</string>
+  <string name="system_prompt_placeholder" translatable="true" description="Placeholder hint text inside the system prompt editor text field showing example instructions. [CHAR_LIMIT=134]">输入系统指令（例如：「你是一个全能助手，以专业语气提供准确、有上下文意识的回答。」）</string>
+  <string name="system_prompt_updated" translatable="true" description="Confirmation message shown to the user when they successfully modify the system prompt. [CHAR_LIMIT=23]">系统提示词已更新</string>
+  <string name="submit" translatable="true" description="Button label to submit user feedback. [CHAR_LIMIT=8]">提交</string>
+  <string name="take_a_picture" translatable="true" description="Menu option to capture a new photo using the device camera. [CHAR_LIMIT=16]">拍照</string>
+  <string name="tap_to_change_color" translatable="true" description="Button label indicating the user can tap it to open a color picker. [CHAR_LIMIT=21]">点击更改颜色</string>
+  <string name="tap_to_see_value" translatable="true" description="Instruction text guiding users how to view specific data points on a benchmark chart. [CHAR_LIMIT=27]">点击图表查看数值</string>
+  <string name="test" translatable="true" description="Button label or header for testing functionality. [CHAR_LIMIT=6]">测试</string>
+  <string name="text_image_generation_text_field_placeholder" translatable="true" description="Placeholder hint in a text field for generating images from text prompts. [CHAR_LIMIT=14]">输入提示词…</string>
+  <string name="text_input_placeholder_llm_chat" translatable="true" description="Placeholder hint in the chat message input field (e.g., 'Type prompt...'). [CHAR_LIMIT=14]">输入提示词…</string>
+  <string name="tos_dialog_title_app" translatable="true" description="Title of the onboarding Terms of Service dialog. [CHAR_LIMIT=35]">欢迎使用 Google AI Edge Gallery</string>
+  <!-- Body text of the Terms of Service dialog. Contains links to Google Terms of Service and Privacy Policy. -->
+  <string name="tos_dialog_body" translatable="true" description="Main legal and privacy text inside the Terms of Service dialog, including links to Google policies. [CHAR_LIMIT=647]">使用本应用即表示您同意 [Google 服务条款](https://policies.google.com/terms?hl=zh-CN)。\n\n如需了解我们收集哪些信息、为何收集、如何使用以及如何查看和更新，请查阅 [Google 隐私政策](https://policies.google.com/privacy?hl=zh-CN)。\n\n本应用收集汇总使用指标以了解用户参与度，例如错误消息、应用操作、IP 推断的大致位置、操作系统版本。这些数据将按照 [Google 隐私政策](https://policies.google.com/privacy?hl=zh-CN) 处理。\n\n您对每个模型的使用均受相应模型许可条款的约束。</string>
+  <!-- Title of the Gemma Terms of Use dialog. -->
+  <string name="tos_dialog_title_gemma" translatable="true" description="Title of the terms dialog specific to using Gemma models. [CHAR_LIMIT=20]">Gemma 使用条款</string>
+  <string name="tos_dialog_accept_and_continue_button_label" translatable="true" description="Button label to accept the app terms and proceed. [CHAR_LIMIT=19]">接受并继续</string>
+  <string name="tos_dialog_agree_and_continue_button_label" translatable="true" description="Button label to agree to Gemma model terms and proceed. [CHAR_LIMIT=18]">同意并继续</string>
+  <string name="try_it" translatable="true" description="Button label to open a task/screen and start interacting with the downloaded model. [CHAR_LIMIT=8]">立即试用</string>
+  <string name="turn_on_all" translatable="true" description="Action label to enable or select all items in a list (e.g., plugins, skills). [CHAR_LIMIT=13]">全部开启</string>
+  <string name="turn_off_all" translatable="true" description="Action label to disable or deselect all items in a list. [CHAR_LIMIT=14]">全部关闭</string>
+  <string name="undo" translatable="true" description="Action button label to revert the last action. [CHAR_LIMIT=6]">撤销</string>
+  <string name="use" translatable="true" description="Accessibility content description for a button or icon that applies or uses a trigger/setting. [CHAR_LIMIT=5]">使用</string>
+  <string name="unsupported_action" translatable="true" description="Error message shown when the model attempts an action that the app cannot execute. [CHAR_LIMIT=20]">不支持的操作</string>
+  <string name="set_screen_brightness_message" translatable="true" description="Status message indicating the app set the screen brightness to a specific percentage. [CHAR_LIMIT=43]">已将屏幕亮度设置为 %1$d%%。</string>
+  <string name="set_timer_message" translatable="true" description="Status message indicating the app is setting a timer for a specific number of seconds. [CHAR_LIMIT=37]">正在设置 %1$d 秒的计时器。</string>
+  <string name="add_calendar_event_message" translatable="true" description="Status message confirming a calendar event is being added. [CHAR_LIMIT=53]">正在将「团队会议（上午10点-11点）」添加到您的日历。</string>
+  <string name="take_picture_message" translatable="true" description="Status message confirming the camera app is being opened. [CHAR_LIMIT=25]">正在打开相机应用。</string>
+  <string name="mobile_actions_title" translatable="false">Mobile Actions</string>
+  <string name="mobile_actions_description" translatable="true" description="Subtitle/description of the Mobile Actions feature, explaining users can control the device. [CHAR_LIMIT=42]">用简单指令控制您的设备</string>
+  <string name="mobile_actions_supported_actions" translatable="true" description="Header for the list of sample commands supported by the mobile actions model. [CHAR_LIMIT=27]">支持的示例操作：</string>
+  <string name="mobile_actions_tab_model_response" translatable="true" description="Tab title showing the raw text output from the model in Mobile Actions screen. [CHAR_LIMIT=16]">模型响应</string>
+  <string name="mobile_actions_tab_function_called" translatable="true" description="Tab title showing the structured function calls made by the model in Mobile Actions screen. [CHAR_LIMIT=20]">已调用函数</string>
+  <string name="update" translatable="true" description="Button label to update a model to a newer version. [CHAR_LIMIT=8]">更新</string>
+  <string name="update_available" translatable="true" description="Label indicating a new version of the model is available. [CHAR_LIMIT=18]">有更新可用</string>
+  <string name="view_results" translatable="true" description="Button label to navigate to the benchmark results viewer. [CHAR_LIMIT=14]">查看结果</string>
+  <string name="view_console_logs" translatable="true" description="Action chip label to open the log viewer overlay for a specific message/run. [CHAR_LIMIT=19]">查看控制台日志</string>
+  <string name="warming_up" translatable="true" description="Status message indicating the model is warming up/preparing before running inference. [CHAR_LIMIT=13]">预热中…</string>
+  <string name="warning_no_function_call" translatable="true" description="Fallback response text when the agent model fails to map the user input to a function call or action. [CHAR_LIMIT=84]">我不太明白您的意思，能否提供更具体的细节再试一次？</string>
+  <string name="snackbar_no_function_call" translatable="true" description="Short message shown in a toast/snackbar when the user command didn't trigger any function. [CHAR_LIMIT=24]">未识别到功能</string>
+  <string name="unknown_error" translatable="true" description="Generic fallback error message text when a more specific error message is not available. [CHAR_LIMIT=15]">未知错误</string>
+  <string name="view" translatable="true" description="General action label to view details of an item (e.g., tool or skill). [CHAR_LIMIT=6]">查看</string>
+  <string name="view_in_full_screen" translatable="true" description="Action chip label to expand a web view content into full screen modal. [CHAR_LIMIT=21]">全屏查看</string>
+  <string name="snackbar_save_to_album_success" translatable="true" description="Success notification message shown when an image is saved to the gallery. [CHAR_LIMIT=22]">已保存到相册</string>
+  <string name="snackbar_save_to_album_failed" translatable="true" description="Failure notification message shown when saving an image to the gallery fails. [CHAR_LIMIT=31]">保存到相册失败</string>
+  <string name="snackbar_copy_to_clipboard_success" translatable="true" description="Success notification message shown when text is copied to the clipboard. [CHAR_LIMIT=21]">已复制到剪贴板</string>
+
+  <plurals name="parameter" translatable="true">
+    <item quantity="one">参数</item>
+    <item quantity="other">参数</item>
+  </plurals>
+  <string name="prompt_template_label_flash_on_off" translatable="true" description="Label for a sample action button to toggle the device flashlight on or off. [CHAR_LIMIT=24]">开关手电筒</string>
+  <string name="prompt_template_label_flash_on" translatable="true" description="Label for a prompt template that requests to turn on the flashlight. [CHAR_LIMIT=15]">打开手电筒</string>
+  <string name="prompt_template_label_flash_off" translatable="true" description="Label for a prompt template that requests to turn off the flashlight. [CHAR_LIMIT=16]">关闭手电筒</string>
+  <string name="prompt_template_label_create_contact" translatable="true" description="Label for a prompt template or a sample action button to create a new contact. [CHAR_LIMIT=16]">创建联系人</string>
+  <string name="prompt_template_label_send_email" translatable="true" description="Label for a prompt template or a sample action button to send an email. [CHAR_LIMIT=12]">发送邮件</string>
+  <string name="prompt_template_label_create_calendar_event" translatable="true" description="Label for a prompt template or a sample action button to create a calendar event. [CHAR_LIMIT=23]">创建日历事件</string>
+  <string name="prompt_template_label_show_location_on_map" translatable="true" description="Label for a prompt template or a sample action button to show a location on a map. [CHAR_LIMIT=22]">在地图上显示位置</string>
+  <string name="prompt_template_label_open_wifi_settings" translatable="true" description="Label for a prompt template or a sample action button to open Wi-Fi settings. [CHAR_LIMIT=20]">打开 Wi-Fi 设置</string>
+
+  <!-- Strings for MobileActionsChallengeDialog -->
+  <string name="mobile_actions_challenge_title" translatable="true" description="Title of a challenge dialog where users are prompted to fine-tune a model. %s is the name of the feature (e.g., &quot;Mobile Actions&quot;). [CHAR_LIMIT=23]">%s 微调挑战</string>
+  <string name="mobile_actions_challenge_subtitle" translatable="true" description="Subtitle of the challenge dialog, encouraging the user to build/fine-tune the model to use it. [CHAR_LIMIT=22]">构建它才能玩！</string>
+  <string name="mobile_actions_challenge_description" translatable="true" description="Description explaining that the demo is locked and the user needs to compile the model to unlock it. %s is the name of the agent/feature. [CHAR_LIMIT=115]">此演示已锁定。要解锁 %s 智能体，您需要使用我们的开源配方自行编译模型。</string>
+  <string name="mobile_actions_challenge_instructions_title" translatable="true" description="Header for the list of instructions on how to unlock the demo. [CHAR_LIMIT=15]">操作步骤：</string>
+  <string name="mobile_actions_challenge_instruction_1" translatable="true" description="First step of instructions, directing the user to open a link on their computer. [CHAR_LIMIT=131]">1. <![CDATA[<b>在您的电脑上</b>]]>，打开 <![CDATA[<a href="https://ai.google.dev/gemma/docs/mobile-actions">本指南</a>]]></string>
+  <string name="mobile_actions_challenge_instruction_2" translatable="true" description="Second step of instructions, telling the user to fine-tune and convert the model. [CHAR_LIMIT=87]">2. 按照说明微调模型并将其转换为 .litertlm 格式。</string>
+  <string name="mobile_actions_challenge_instruction_3" translatable="true" description="Third step of instructions, telling the user to transfer the converted model file to the phone. [CHAR_LIMIT=37]">3. 将文件传输到这部手机。</string>
+  <string name="mobile_actions_challenge_instruction_4" translatable="true" description="Fourth step of instructions, telling the user to tap the button to load the model. [CHAR_LIMIT=64]">4. 点击下方 <![CDATA[<b>加载模型</b>]]> 解锁演示。</string>
+  <string name="mobile_actions_challenge_email_colab" translatable="true" description="Button label to send the link to the guide/colab to the user's email. [CHAR_LIMIT=23]">将指南发送到我的邮箱</string>
+  <string name="mobile_actions_challenge_load_model" translatable="true" description="Button label to initiate loading the custom-built model. [CHAR_LIMIT=12]">加载模型</string>
+
+  <!-- Strings for skills -->
+  <string name="aichat_emptystate_title" translatable="false">AI Chat</string>
+  <string name="aichat_emptystate_content" translatable="true" description="Description text shown on the empty state screen of the AI Chat feature, explaining what it does. [CHAR_LIMIT=44]">与端侧大语言模型对话。</string>
+  <string name="aichat_emptystate_support_image_audio" translatable="true" description="Description text shown on the empty state screen of the AI Chat feature, explaining the multimodal limits. [CHAR_LIMIT=100]">每次对话支持最多10张图片和1段最长30秒的音频。</string>
+  <string name="aichat_emptystate_support_image_aicore_audio" translatable="true" description="Description text shown on the empty state screen of the AI Chat feature, explaining the multimodal limits. [CHAR_LIMIT=100]">每次对话支持1张图片和1段最长30秒的音频。</string>
+  <string name="aichat_emptystate_support_image" translatable="true" description="Description text shown on the empty state screen of the AI Chat feature, explaining the multimodal limits. [CHAR_LIMIT=100]">每次对话支持最多10张图片。</string>
+  <string name="aichat_emptystate_support_image_aicore" translatable="true" description="Description text shown on the empty state screen of the AI Chat feature, explaining the multimodal limits. [CHAR_LIMIT=100]">每次对话支持1张图片。</string>
+  <string name="aichat_emptystate_support_audio" translatable="true" description="Description text shown on the empty state screen of the AI Chat feature, explaining the multimodal limits. [CHAR_LIMIT=100]">支持1段最长30秒的音频。</string>
+  <string name="add_script" translatable="true" description="Title of the dialog for adding a new script to a skill. [CHAR_LIMIT=12]">添加脚本</string>
+  <string name="add_default_script" translatable="true" description="Button label to add a template or default script when no scripts exist yet. [CHAR_LIMIT=20]">添加默认脚本</string>
+  <string name="add_skill" translatable="true" description="Title of the bottom sheet containing options to add a new skill. [CHAR_LIMIT=11]">添加技能</string>
+  <string name="add_skill_option_view_community_skills_title" translatable="true" description="Title of the option to explore community-contributed skills. [CHAR_LIMIT=23]">查看社区技能</string>
+  <string name="add_skill_option_view_community_skills_description" translatable="true" description="Description for the option to view community skills, explaining where they are hosted (GitHub discussions). [CHAR_LIMIT=60]">在 GitHub 讨论区探索社区贡献的技能</string>
+  <string name="add_skill_option_featured_list_title" translatable="true" description="Title of the option to add a skill from a pre-defined featured list. [CHAR_LIMIT=30]">从精选列表添加技能</string>
+  <string name="add_skill_option_featured_list_description" translatable="true" description="Description for the option to add a skill from the featured list. [CHAR_LIMIT=65]">从精选的社区贡献技能列表中添加</string>
+  <string name="add_skill_option_url_title" translatable="true" description="Title of the option to load a skill by providing its URL. [CHAR_LIMIT=21]">从 URL 加载技能</string>
+  <string name="add_skill_option_url_description" translatable="true" description="Description for the option to load a skill from a URL. [CHAR_LIMIT=50]">输入托管在 Web 上的技能目录 URL</string>
+  <string name="add_skill_option_local_title" translatable="true" description="Title of the option to import a skill from local storage. [CHAR_LIMIT=20]">导入本地技能</string>
+  <string name="add_skill_option_local_description" translatable="true" description="Description for the option to import a local skill. [CHAR_LIMIT=36]">从本地导入技能目录</string>
+  <string name="add_skill_option_skill_creator_title" translatable="true" description="Title of the option to create a new skill from scratch using an in-app creator. [CHAR_LIMIT=15]">技能创建器</string>
+  <string name="add_skill_option_skill_creator_description" translatable="true" description="Description for the option to create a skill from scratch within the app. [CHAR_LIMIT=36]">在应用内从头创建技能</string>
+  <string name="add_skill_from_url_dialog_title" translatable="true" description="Title of the dialog where users can input a URL to add a skill. [CHAR_LIMIT=20]">从 URL 添加技能</string>
+  <string name="add_skill_dialog_title_from_local_import" translatable="true" description="Title of the dialog for importing a skill from the device's local storage. [CHAR_LIMIT=20]">导入本地技能</string>
+  <string name="add_skill_dialog_subtitle_from_local_import" translatable="true" description="Instructions for developers on how to prepare the skill directory on the device before importing it. [CHAR_LIMIT=71]">请先使用「adb push」将整个技能目录推送到 /sdcard/Download</string>
+  <string name="add_skill_manual_input_sheet_title" translatable="true" description="Title of the bottom sheet when the user is creating a new skill manually. [CHAR_LIMIT=16]">创建技能</string>
+  <string name="agent_skills" translatable="false">Agent Skills</string>
+  <string name="disclaimer_dialog_content" translatable="true" description="Disclaimer warning users about the risks of using third-party skills. [CHAR_LIMIT=345]">第三方技能并非由 Google 创作或背书。Google 不对其内容、安全性或数据处理做法负责。\n\n在提供个人身份信息、令牌或 API 密钥等敏感信息前请谨慎操作。\n\n对任何 Agent 技能的使用均受该技能相应条款的约束。</string>
+  <string name="disclaimer_dialog_title" translatable="true" description="Title of the disclaimer dialog shown when adding a third-party skill. [CHAR_LIMIT=23]">添加第三方技能</string>
+  <string name="disclaimer_dialog_agree" translatable="true" description="Button label to agree to the disclaimer terms and proceed. [CHAR_LIMIT=7]">同意</string>
+  <string name="delete_script_dialog_title" translatable="true" description="Title of the confirmation dialog shown before deleting a script. [CHAR_LIMIT=15]">删除脚本</string>
+  <string name="delete_skill_dialog_title" translatable="true" description="Title of the confirmation dialog shown before deleting a skill. [CHAR_LIMIT=14]">删除技能</string>
+  <string name="delete_skill_dialog_content" translatable="true" description="Confirmation message asking the user if they are sure they want to delete the skill. [CHAR_LIMIT=44]">确定要删除该技能吗？</string>
+  <string name="delete_selected_skills_title" translatable="true" description="Title of the confirmation dialog shown when deleting multiple selected skills in batch mode. [CHAR_LIMIT=24]">删除选中的技能</string>
+  <plurals name="delete_selected_skills_content" translatable="true">
+    <item quantity="one">确定要删除 %d 个技能吗？</item>
+    <item quantity="other">确定要删除 %d 个技能吗？</item>
+  </plurals>
+  <plurals name="selected_custom_skills_count" translatable="true">
+    <item quantity="one">已选 %d 项</item>
+    <item quantity="other">已选 %d 项</item>
+  </plurals>
+  <string name="built_in_skills_title" translatable="true" description="Section header for skills that are built into the application. [CHAR_LIMIT=17]">内置技能</string>
+  <string name="custom_skills_title" translatable="true" description="Section header for skills that have been added or created by the user. [CHAR_LIMIT=15]">自定义技能</string>
+  <string name="describe_requirements" translatable="true" description="Label for the input field where the user describes the requirements for the LLM prompt to be generated. [CHAR_LIMIT=23]">描述需求</string>
+  <string name="describe_input_data" translatable="true" description="Label for the input field where the user describes the structure or content of the input data for the skill. [CHAR_LIMIT=21]">描述输入数据</string>
+  <string name="describe_input_data_support_text" translatable="true" description="Help text explaining that input data field names must match those used in the skill instructions. [CHAR_LIMIT=57]">字段名称需与指令中的名称一致。</string>
+  <string name="describe_output_data" translatable="true" description="Label for the input field where the user describes the expected output data from the skill. [CHAR_LIMIT=22]">描述输出数据</string>
+  <string name="duplicated_script_name" translatable="true" description="Error message shown when the user tries to create a script with a name that is already in use within the skill. [CHAR_LIMIT=24]">脚本名称重复</string>
+  <!-- Message in a dialog explaining that a skill is disabled and how to enable it. -->
+  <string name="enable_skill_dialog_content" translatable="true" description="Message instructing the user to enable a skill before they can use it. [CHAR_LIMIT=60]">请点击下方「技能」按钮启用该技能</string>
+  <!-- Button label to edit a skill. -->
+  <string name="edit_skill" translatable="true" description="Label or title for editing an existing skill. [CHAR_LIMIT=12]">编辑技能</string>
+  <!-- Text field placeholder/label to enter the URL of a skill. -->
+  <string name="enter_skill_url" translatable="true" description="Label for the text input field where the user enters the URL of the skill they want to load. [CHAR_LIMIT=37]">输入技能根目录的 URL</string>
+  <string name="featured_skills_title" translatable="true" description="Title of the bottom sheet that displays a curated list of featured skills. [CHAR_LIMIT=17]">精选技能</string>
+  <string name="featured_skills_description" translatable="true" description="Description explaining what the featured skills list is. [CHAR_LIMIT=48]">精选的社区贡献技能列表</string>
+  <string name="generate_llm_prompt_title" translatable="true" description="Title of the bottom sheet used to generate a prompt for an LLM to help write skill code. [CHAR_LIMIT=21]">生成 LLM 提示词</string>
+  <string name="generate_llm_prompt_button_label" translatable="true" description="Label on a button that triggers the generation of an LLM prompt. [CHAR_LIMIT=12]">LLM 提示词</string>
+  <string name="learn_how_to_write_skills" translatable="true" description="Link or button text directing users to documentation on how to create their own skills. [CHAR_LIMIT=27]">了解如何编写技能</string>
+  <string name="loading_skills_allowlist" translatable="true" description="Loading message shown while the list of featured skills is being fetched. [CHAR_LIMIT=28]">正在加载精选技能…</string>
+  <string name="manage_skills" translatable="true" description="Title of the screen/bottom sheet where users can manage their skills. [CHAR_LIMIT=15]">管理技能</string>
+  <string name="manage_skills_description" translatable="true" description="Description text explaining the purpose of the Skill Manager. [CHAR_LIMIT=38]">查看、创建和管理您的技能</string>
+  <string name="skill_limit_warning" translatable="true" description="Warning message displayed when too many skills are enabled, which might slow down the app. %s is the maximum recommended number of enabled skills. [CHAR_LIMIT=47]">启用超过 %s 个技能可能影响性能。</string>
+  <string name="no_directory_selected" translatable="true" description="Text displayed when no local directory has been selected for importing a skill. [CHAR_LIMIT=23]">未选择目录</string>
+  <string name="pick_skill_dir" translatable="true" description="Label instructing the user to select the root directory of the skill they want to import. [CHAR_LIMIT=29]">选择技能根目录</string>
+  <string name="prompt_copied_message" translatable="true" description="Message informing the user that the prompt has been copied and instructing them on what to do next. [CHAR_LIMIT=116]">提示词已复制到剪贴板。请粘贴到您喜欢的 LLM 应用中生成代码，然后将代码复制粘贴到此处。</string>
+  <string name="prompt_chip_kitchen_adventure" translatable="true" description="Label for a quick-start prompt chip related to a kitchen or cooking scenario. [CHAR_LIMIT=19]">厨房冒险</string>
+  <string name="prompt_chip_calculate_hash" translatable="true" description="Label for a quick-start prompt chip to calculate a hash (e.g., MD5, SHA). [CHAR_LIMIT=16]">计算哈希</string>
+  <string name="prompt_chip_query_wikipedia" translatable="true" description="Label for a quick-start prompt chip to search Wikipedia. [CHAR_LIMIT=17]">搜索维基百科</string>
+  <string name="prompt_chip_plot_chart" translatable="true" description="Label for a quick-start prompt chip to generate or plot a chart. [CHAR_LIMIT=12]">绘制图表</string>
+  <string name="prompt_chip_interactive_map" translatable="true" description="Label for a quick-start prompt chip to show an interactive map. [CHAR_LIMIT=17]">交互式地图</string>
+  <string name="prompt_chip_text_spinner" translatable="true" description="Label for a quick-start prompt chip, possibly a fun or demo action. [CHAR_LIMIT=23]">在我头上旋转标签</string>
+  <string name="prompt_chip_send_email" translatable="true" description="Label for a quick-start prompt chip to send an email. [CHAR_LIMIT=12]">发送邮件</string>
+  <string name="replace_skill_dialog_title" translatable="true" description="Title of the dialog asking to confirm replacing an existing skill with the same name. [CHAR_LIMIT=24]">替换现有技能</string>
+  <string name="replace_skill_dialog_content" translatable="true" description="Message asking the user if they want to overwrite an existing skill that has the same name. [CHAR_LIMIT=71]">已存在同名技能，是否要替换？</string>
+  <string name="search_skill" translatable="true" description="Placeholder text in a search bar to search for skills. [CHAR_LIMIT=20]">搜索技能</string>
+  <string name="select_script" translatable="true" description="Label for a dropdown menu to select which script to view or edit. [CHAR_LIMIT=15]">选择脚本</string>
+  <string name="script_name" translatable="true" description="Label for the text input field where the user enters the name of a new script. [CHAR_LIMIT=13]">脚本名称</string>
+  <string name="script_content" translatable="true" description="Label or header for the content/code of a script. [CHAR_LIMIT=16]">脚本内容</string>
+  <string name="skills" translatable="true" description="Label for the button that opens the skill management options. [CHAR_LIMIT=8]">技能</string>
+  <plurals name="skills_count" translatable="true">
+    <item quantity="one">%d 个技能</item>
+    <item quantity="other">%d 个技能</item>
+  </plurals>
+  <string name="skill_name_input_description" translatable="true" description="Help text indicating that the skill name is required and suggesting a kebab-case format. [CHAR_LIMIT=40]">必填。格式如 my-skill-name</string>
+  <string name="skill_description_input_description" translatable="true" description="Help text explaining what should be entered in the skill description field. [CHAR_LIMIT=91]">必填。简要描述技能的功能以及触发条件或关键词。</string>
+  <string name="skill_instructions_input_description" translatable="true" description="Help text explaining what should be entered in the skill instructions field (markdown format for LLM). [CHAR_LIMIT=87]">Markdown 格式的详细指令，LLM 必须遵循以完成任务。</string>
+  <string name="use_call_js_template" translatable="true" description="Button label to pre-fill the instructions field with a template for calling JavaScript code. [CHAR_LIMIT=22]">使用调用 JS 模板</string>
+
+  <!-- Strings for MCP -->
+  <string name="mcp" translatable="true" description="Label for the button that opens the Model Context Protocol (MCP) manager. [CHAR_LIMIT=5]">MCP</string>
+  <string name="mcp_tool_call_permission_title" translatable="true" description="Title of the dialog asking the user for permission to execute an MCP tool. [CHAR_LIMIT=30]">允许调用 MCP 工具？</string>
+  <string name="mcp_tool_name_label" translatable="true" description="Label prefixing the name of the tool requesting execution permission. [CHAR_LIMIT=11]">工具名称</string>
+  <string name="mcp_tool_input_label" translatable="true" description="Label prefixing the input arguments being passed to the tool. [CHAR_LIMIT=7]">输入</string>
+  <string name="mcp_tool_always_allow" translatable="true" description="Button label to grant permanent permission for the tool to run without asking again. [CHAR_LIMIT=14]">始终允许</string>
+  <string name="mcp_tool_allow_once" translatable="true" description="Button label to grant one-time permission for the tool to run. [CHAR_LIMIT=12]">允许一次</string>
+  <string name="mcp_tool_dont_allow" translatable="true" description="Button label to deny permission for the tool to run. [CHAR_LIMIT=13]">不允许</string>
+  <string name="mcp_tool_revoke" translatable="true" description="Button label to confirm revoking automatic permission for a tool. [CHAR_LIMIT=8]">撤销</string>
+  <string name="mcp_tool_revoke_permission" translatable="true" description="Button label to initiate revoking &quot;always allow&quot; permission for a tool. [CHAR_LIMIT=29]">撤销工具调用权限</string>
+  <string name="mcp_tool_revoke_permission_title" translatable="true" description="Title of the confirmation dialog for revoking tool permission. [CHAR_LIMIT=20]">撤销权限？</string>
+  <string name="mcp_tool_revoke_permission_content" translatable="true" description="Message asking the user if they are sure they want to revoke the automatic execution permission for the tool. [CHAR_LIMIT=77]">确定要撤销自动调用此工具的权限吗？</string>
+  <string name="manage_mcp_servers" translatable="true" description="Title of the screen/bottom sheet where users can manage Model Context Protocol (MCP) servers. [CHAR_LIMIT=20]">管理 MCP 服务器</string>
+  <string name="add_mcp_server" translatable="true" description="Button label to add a new MCP server. [CHAR_LIMIT=16]">添加 MCP 服务器</string>
+  <string name="learn_more_about_mcp" translatable="true" description="Link text directing users to documentation about Model Context Protocol (MCP). [CHAR_LIMIT=48]">了解更多关于 Google AI Edge Gallery 中的 MCP</string>
+  <string name="learn_more_about_mcp_short" translatable="true" description="Link text to learn more about MCP (Model Context Protocol). [CHAR_LIMIT=12]">了解更多</string>
+  <string name="search_mcp_server" translatable="true" description="Placeholder text in a search field to search for an MCP (Model Context Protocol) server. [CHAR_LIMIT=26]">搜索 MCP 服务器</string>
+  <plurals name="mcp_servers_count" translatable="true">
+    <item quantity="one">%d 个 MCP 服务器</item>
+    <item quantity="other">%d 个 MCP 服务器</item>
+  </plurals>
+  <plurals name="mcp_tools_count" translatable="true">
+    <item quantity="one">%d 个工具</item>
+    <item quantity="other">%d 个工具</item>
+  </plurals>
+  <string name="add_mcp_server_from_url_dialog_title" translatable="true" description="Title of the dialog used to add a new MCP server by entering its URL. [CHAR_LIMIT=25]">从 URL 添加 MCP 服务器</string>
+  <string name="enter_mcp_server_url" translatable="true" description="Label for the text field where the user enters the MCP server URL. [CHAR_LIMIT=22]">输入 MCP 服务器 URL</string>
+  <string name="delete_mcp_server_dialog_title" translatable="true" description="Title of the confirmation dialog when deleting an MCP server. [CHAR_LIMIT=19]">删除 MCP 服务器</string>
+  <string name="delete_mcp_server_dialog_content" translatable="true" description="Content text of the confirmation dialog when deleting an MCP server. [CHAR_LIMIT=50]">确定要删除此 MCP 服务器吗？</string>
+  <string name="manage_tools" translatable="true" description="Title of the bottom sheet or section for managing tools associated with MCP servers. [CHAR_LIMIT=14]">管理工具</string>
+  <string name="mcp_server_label" translatable="true" description="Label displaying the name or URL of the MCP server. [CHAR_LIMIT=16]">MCP 服务器：%s</string>
+  <string name="mcp_tool_description" translatable="true" description="Label for the description section of a tool. [CHAR_LIMIT=13]">描述</string>
+  <string name="mcp_tool_schema" translatable="true" description="Label for the input schema section of a tool. [CHAR_LIMIT=8]">架构</string>
+  <string name="mcp_disclaimer_dialog_title" translatable="true" description="Title of the disclaimer dialog shown when adding a third-party MCP server. [CHAR_LIMIT=21]">添加第三方 MCP</string>
+  <string name="mcp_disclaimer_dialog_content" translatable="true" description="Disclaimer text informing the user about risks of using third-party MCP servers. [CHAR_LIMIT=333]">第三方 MCP 并非由 Google 创作或背书。Google 不对其内容、安全性或数据处理做法负责。\n\n在提供个人身份信息、令牌或 API 密钥等敏感信息前请谨慎操作。\n\n对任何 MCP 的使用均受该 MCP 相应条款的约束。</string>
+  <string name="mcp_server_duplicate_title" translatable="true" description="Title of the dialog warning the user that the MCP server URL is already added. [CHAR_LIMIT=22]">MCP 服务器重复</string>
+  <string name="mcp_server_duplicate_content" translatable="true" description="Content text warning that the MCP server URL is duplicate. [CHAR_LIMIT=39]">此 MCP 服务器 URL 已添加。</string>
+  <string name="mcp_server_authorization" translatable="true" description="Label for the authorization configuration section when adding an MCP server. [CHAR_LIMIT=15]">授权</string>
+  <string name="mcp_server_auth_none" translatable="true" description="Option indicating no authorization is needed for the MCP server. [CHAR_LIMIT=6]">无</string>
+  <string name="mcp_server_auth_request_header" translatable="true" description="Option indicating authorization via request headers. [CHAR_LIMIT=16]">请求头</string>
+  <string name="mcp_server_auth_oauth_wip" translatable="true" description="Option indicating OAuth authorization (Work In Progress). [CHAR_LIMIT=13]">OAuth（开发中）</string>
+  <string name="mcp_server_header_name" translatable="true" description="Label for the input field where the user enters the authorization header name. [CHAR_LIMIT=13]">请求头名称</string>
+  <string name="mcp_server_header_value" translatable="true" description="Label for the input field where the user enters the authorization header value. [CHAR_LIMIT=14]">请求头值</string>
+
+  <!-- Strings for ChatHistorySideSheet component (used for the chat history side bar) -->
+  <!-- Displayed as the header and section title for the user's past chats. -->
+  <string name="chat_history_title" translatable="true" description="Title of the chat history side sheet or screen. [CHAR_LIMIT=14]">对话历史</string>
+  <!-- Displayed on the button to clear and start a new chat session. -->
+  <string name="new_chat" translatable="true" description="Button label to start a new chat session. [CHAR_LIMIT=10]">新建对话</string>
+  <!-- Displayed to clear all current chat history items from the list. -->
+  <string name="clear_all" translatable="true" description="Button label to clear all chat history. [CHAR_LIMIT=11]">清空全部</string>
+  <!-- Displayed as a persistent notice at the bottom of the side bar regarding demo usage. -->
+  <string name="chat_history_demo_notice" translatable="true" description="Informational message stating that chat history is temporary and not saved permanently. [CHAR_LIMIT=45]">对话历史不会在演示间持久保存。</string>
+  <string name="chat_remote_inference_banner">云端模式 · 回复由 %1$s 生成，数据将通过网络发送</string>
+  <!-- 【M7】推理来源切换（本地/外部模型）。 -->
+  <string name="inference_source_auto">自动</string>
+  <string name="inference_source_local">本地</string>
+  <string name="inference_source_remote">云端</string>
+  <string name="inference_stats_speed">%1$.1f tok/s</string>
+  <string name="inference_stats_summary">%1$d tokens · %2$s · 首 token %3$d ms · 总耗时 %4$d ms</string>
+  <!-- Title for warning dialog before clearing chat history. -->
+  <string name="clear_history_dialog_title" translatable="true" description="Title of the confirmation dialog when clearing chat history. [CHAR_LIMIT=16]">清空历史？</string>
+  <!-- Content descriptive text for the clear history warning dialog. -->
+  <string name="clear_history_dialog_content" translatable="true" description="Content text warning that clearing history is permanent. [CHAR_LIMIT=75]">确定要清空历史吗？此操作无法撤销。</string>
+
+  <!-- Strings for model import dialog  [CHAR LIMIT=NONE] -->
+  <string name="import_model_terms_subtitle" translatable="true" description="Subtitle in the import model bottom sheet reminding users to adhere to separate model terms. [CHAR_LIMIT=78]">您有责任遵守适用于模型的任何单独条款。</string>
+  <string name="cd_import_model_from_hugging_face" translatable="true" description="Content description spoken when the import model from hugging face button is focused. [CHAR_LIMIT=32]">从 Hugging Face 导入模型</string>
+  <string name="import_model_from_hugging_face" translatable="true" description="Text label on the button/option to import a model from Hugging Face. [CHAR_LIMIT=19]">从 Hugging Face</string>
+  <string name="import_from_hugging_face_title" translatable="true" description="Title of the dialog box for importing a model from Hugging Face. [CHAR_LIMIT=26]">从 Hugging Face 导入</string>
+  <string name="enter_hugging_face_url" translatable="true" description="Prompt text to guide the user to enter a Hugging Face model card or model file URL. [CHAR_LIMIT=90]">"输入 Hugging Face 模型卡片或文件 URL。例如："</string>
+  <string name="enter_hugging_face_url_example_link" translatable="false">https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm</string>
+  <string name="hugging_face_url_placeholder" description="Placeholder text shown inside the text field where the user enters the URL. [CHAR_LIMIT=26]">https://huggingface.co/…</string>
+  <string name="next" translatable="true" description="Button text to navigate to the next step. [CHAR_LIMIT=6]">下一步</string>
+  <string name="unsupported_model_title" translatable="true" description="Title of the dialog showing that the imported model type is unsupported. [CHAR_LIMIT=24]">不支持的模型类型</string>
+  <string name="unsupported_file_type_error" translatable="true" description="Message informing the user that only .task or .litertlm file formats are supported. [CHAR_LIMIT=53]">仅支持「.task」或「.litertlm」文件格式。</string>
+  <string name="unsupported_web_model_error" translatable="true" description="Message explaining that the model is only for web browsers and not supported on the Android application. [CHAR_LIMIT=75]">该模型似乎仅适用于网页浏览器，不被本应用支持。</string>
+  <string name="file_too_large_warning" translatable="true" description="Warning label when a model file size exceeds device memory limit. [CHAR_LIMIT=100]">可能超出设备内存</string>
+  <string name="incompatible_device_warning" translatable="true" description="Warning label when a model file is incompatible with device hardware. [CHAR_LIMIT=100]">可能与设备硬件不兼容</string>
+  <string name="import_selected_model" translatable="true" description="Button label to confirm importing the selected model file. [CHAR_LIMIT=30]">导入所选模型</string>
+  <string name="copy_url" translatable="true" description="Button label or accessibility action to copy model URL to clipboard. [CHAR_LIMIT=50]">复制 URL</string>
+  <string name="url_copied" translatable="true" description="Toast message shown after model URL is copied to clipboard. [CHAR_LIMIT=100]">URL 已复制到剪贴板</string>
+  <string name="compatible_files_header" translatable="true" description="Header for compatible files section showing count. [CHAR_LIMIT=40]">兼容文件（%1$d）：</string>
+  <string name="compatible_files_subheader" translatable="true" description="Subheader explaining compatible model files. [CHAR_LIMIT=60]">与 AI Edge Gallery 兼容的 LiteRT-LM 文件。</string>
+  <string name="other_files_header" translatable="true" description="Header for incompatible/other files section showing count. [CHAR_LIMIT=40]">其他文件（%1$d）：</string>
+  <string name="other_files_subheader" translatable="true" description="Subheader explaining other model files. [CHAR_LIMIT=60]">可能与 AI Edge Gallery 不兼容的文件。</string>
+  <string name="incompatible_file_selection_prompt" translatable="true" description="Prompt shown when user taps an incompatible file. [CHAR_LIMIT=150]">此文件可能不兼容。您仍可复制文件 URL 以直接导入。</string>
+  <string name="hf_no_model_files_in_card" translatable="true" description="Error message when no LiteRT model files are found in a Hugging Face repository card. [CHAR_LIMIT=100]">在此模型卡片中未找到 LiteRT 模型文件（.litertlm）。</string>
+  <string name="hf_last_updated" translatable="true" description="Label showing when a model was last updated. [CHAR_LIMIT=50]">更新于 %1$s</string>
+  <string name="could_not_fetch_model_details" translatable="true" description="Error message when fetching Hugging Face model details fails. [CHAR_LIMIT=100]">无法加载 %1$s 的模型详情，请检查 URL 后重试。</string>
+
+  <!-- The following entries are for accessibility -->
+
+  <!-- Content description spoken when the "add" icon is focused. -->
+  <string name="cd_add_icon" description="Accessibility description for the &quot;Add&quot; button icon. [CHAR_LIMIT=5]">添加</string>
+  <!-- Content description spoken when the "import model" icon is focused. -->
+  <string name="cd_import_model_button" description="Accessibility description for the Floating Action Button to import a model. [CHAR_LIMIT=14]">导入模型</string>
+  <!-- Content description spoken when the task card is focused. -->
+  <string name="cd_task_card" description="Accessibility description for a task card, indicating the task name and number of models. [CHAR_LIMIT=28]">%1$s 任务，含 %2$d 个模型</string>
+  <!-- Content description spoken when the error icon is focused. -->
+  <string name="cd_error" description="Accessibility description for error icons. [CHAR_LIMIT=7]">错误</string>
+  <!-- Content description spoken when the "import model from local file" button is focused. -->
+  <string name="cd_import_model_from_local_file_button" description="Accessibility description for the option to import a model from a local file. [CHAR_LIMIT=30]">从本地文件导入模型</string>
+  <!-- Content description spoken when the back arrow icon is focused. -->
+  <string name="cd_navigate_back_icon" description="Accessibility description for the back navigation button. [CHAR_LIMIT=9]">返回</string>
+  <!-- Content description spoken when the settings icon is focused. -->
+  <string name="cd_app_settings_icon" description="Accessibility description for the app settings button. [CHAR_LIMIT=10]">设置</string>
+  <!-- Content description spoken when the done icon is focused. -->
+  <string name="cd_done_icon" description="Accessibility description for the &quot;Done&quot; or save button icon. [CHAR_LIMIT=6]">完成</string>
+  <!-- Content description spoken when the collapse icon is focused. -->
+  <string name="cd_collapse_icon" description="Accessibility description for the button to collapse a view or section. [CHAR_LIMIT=10]">收起</string>
+  <!-- Content description spoken when the expand icon is focused. -->
+  <string name="cd_expand_icon" description="Accessibility description for the button to expand a view or section. [CHAR_LIMIT=8]">展开</string>
+  <!-- Content description spoken when the stop icon is focused. -->
+  <string name="cd_stop_icon" description="Accessibility description for the &quot;Stop&quot; button (e.g., to stop generation or download). [CHAR_LIMIT=6]">停止</string>
+  <!-- Content description spoken when the delete icon is focused. -->
+  <string name="cd_delete_icon" description="Accessibility description for the &quot;Delete&quot; button icon. [CHAR_LIMIT=8]">删除</string>
+  <!-- Content description spoken when the close icon is focused. -->
+  <string name="cd_close_icon" description="Accessibility description for the &quot;Close&quot; button icon. [CHAR_LIMIT=7]">关闭</string>
+  <!-- Content description spoken when the selected icon is focused. -->
+  <string name="cd_selected_icon" description="Accessibility description for the icon indicating an item is selected. [CHAR_LIMIT=10]">已选中</string>
+  <!-- Content description spoken when the "model settings" icon is focused. -->
+  <string name="cd_model_settings_icon" description="Accessibility description for the model configuration settings button. [CHAR_LIMIT=16]">模型设置</string>
+  <!-- Content description spoken when the "reset session" icon is focused. -->
+  <string name="cd_reset_session_icon" description="Accessibility description for the button to reset the current session. [CHAR_LIMIT=15]">重置会话</string>
+  <!-- Content description spoken when the "model picker chip" is focused. -->
+  <string name="cd_change_model" description="Accessibility description for the model picker chip, indicating the current model and how to change it. [CHAR_LIMIT=45]">当前模型为 %1$s，点击可更换模型。</string>
+  <!-- Content description spoken when the "close image viewer" icon is focused. -->
+  <string name="cd_close_image_viewer_icon" description="Accessibility description for the button to close the image viewer. [CHAR_LIMIT=20]">关闭图片查看器</string>
+  <!-- Content description spoken when the "copy to clipboard" icon is focused. -->
+  <string name="cd_copy_to_clipboard_icon" description="Accessibility description for the &quot;Copy to clipboard&quot; button. [CHAR_LIMIT=19]">复制到剪贴板</string>
+  <!-- Content description spoken when the "prompt input" text field is focused. -->
+  <string name="cd_prompt_input_text_field" description="Accessibility description for the prompt input text field. [CHAR_LIMIT=14]">提示词输入</string>
+  <!-- Content description spoken when the "send prompt" icon is focused. -->
+  <string name="cd_send_prompt_icon" description="Accessibility description for the &quot;Send prompt&quot; button. [CHAR_LIMIT=13]">发送提示词</string>
+  <!-- Content description spoken when the "model response" text is focused. -->
+  <string name="cd_model_response_text" description="Accessibility description for the area displaying the model's response. [CHAR_LIMIT=21]">模型响应文本</string>
+  <!-- Content description spoken when the "clear input history" icon is focused. -->
+  <string name="cd_clear_input_history_icon" description="Accessibility description for the button to clear all input history. [CHAR_LIMIT=21]">清空输入历史</string>
+  <!-- Content description spoken when the "delete input history entry" icon is focused. -->
+  <string name="cd_delete_input_history_entry_icon" description="Accessibility description for the button to delete a single history entry. [CHAR_LIMIT=28]">删除输入历史条目</string>
+  <!-- Content description spoken when the "content input field" is focused. -->
+  <string name="cd_content_input_field" description="Accessibility description for the content input field in prompt templates. [CHAR_LIMIT=15]">内容输入</string>
+  <!-- Content description spoken when the "add example prompt" icon is focused. -->
+  <string name="cd_add_example_prompt_icon" description="Accessibility description for the button to add an example prompt. [CHAR_LIMIT=20]">添加示例提示词</string>
+  <!-- Content description spoken when the image thumbnail is focused. -->
+  <string name="cd_image_thumbnail" description="Accessibility description for the thumbnail of an attached image. [CHAR_LIMIT=17]">图片缩略图</string>
+  <!-- Content description spoken when an user image is focused. -->
+  <string name="cd_user_image" description="Accessibility description for an image sent by the user, indicating its index. [CHAR_LIMIT=17]">用户图片 %1$d</string>
+  <!-- Content description spoken when an user image in a group is focused. -->
+  <string name="cd_user_image_in_group" description="Content description for an image in a group of images sent by the user, indicating its position and total count (e.g., 'User image 1 of 3'). [CHAR_LIMIT=25]">用户图片 %1$d/%2$d</string>
+  <!-- Content description spoken when the "add content" icon is focused. -->
+  <string name="cd_add_content_icon" description="Content description for the button to add content (like attachments or images) to a message. [CHAR_LIMIT=13]">添加内容</string>
+  <!-- Content description spoken when the "camera shutter" icon is focused. -->
+  <string name="cd_camera_shutter_icon" description="Content description for the camera shutter button to take a picture. [CHAR_LIMIT=16]">拍照快门</string>
+  <!-- Content description spoken when the "toggle front or back camera" icon is focused. -->
+  <string name="cd_toggle_front_back_camera_icon" description="Content description for the button to switch between the front and back cameras. [CHAR_LIMIT=29]">切换前后摄像头</string>
+  <!-- Content description spoken when the "pick file" icon is focused. -->
+  <string name="cd_pick_file" description="Content description for the button to select a file or directory from local storage. [CHAR_LIMIT=11]">选择文件</string>
+  <!-- Content description spoken when the "play audio" icon is focused. -->
+  <string name="cd_play_audio_icon" description="Content description for the button to start audio playback. [CHAR_LIMIT=12]">播放音频</string>
+  <!-- Content description spoken when the "stop playback" icon is focused. -->
+  <string name="cd_stop_playback_icon" description="Content description for the button to stop audio playback. [CHAR_LIMIT=15]">停止播放</string>
+  <!-- Content description spoken when the "send audio clip" icon is focused. -->
+  <string name="cd_send_audio_clip_icon" description="Content description for the button to send a recorded audio clip. [CHAR_LIMIT=17]">发送音频片段</string>
+  <!-- Content description spoken when the "start recording" icon is focused. -->
+  <string name="cd_start_recording" description="Content description for the button to start recording audio. [CHAR_LIMIT=17]">开始录音</string>
+  <!-- Content description spoken when the "downloaded" icon is focused. -->
+  <string name="cd_downloaded_icon" description="Content description for the icon indicating that a model has been successfully downloaded. [CHAR_LIMIT=12]">已下载</string>
+  <!-- Content description spoken when the "not downloaded" icon is focused. -->
+  <string name="cd_not_downloaded_icon" description="Content description for the icon indicating that a model has not been downloaded. [CHAR_LIMIT=16]">未下载</string>
+  <!-- Content description spoken when the "downloading" icon is focused. -->
+  <string name="cd_downloading_icon" description="Content description for the icon indicating that a model download is in progress. [CHAR_LIMIT=13]">下载中</string>
+  <!-- Content description spoken when the "download failed" icon is focused. -->
+  <string name="cd_download_failed_icon" description="Content description for the icon indicating that a model download has failed. [CHAR_LIMIT=17]">下载失败</string>
+  <!-- Content description spoken when the "download failed" icon is focused. -->
+  <string name="cd_chat_panel" description="Content description for the main chat interface panel. [CHAR_LIMIT=12]">对话面板</string>
+  <!-- Content description spoken when the "switch to keyboard" icon is focused. -->
+  <string name="cd_switch_to_keyboard" description="Content description for the button to switch the input mode to keyboard text entry. [CHAR_LIMIT=20]">切换到键盘</string>
+  <!-- Content description spoken when the "switch to voice" icon is focused. -->
+  <string name="cd_switch_to_voice" description="Content description for the button to switch the input mode to voice recording. [CHAR_LIMIT=17]">切换到语音</string>
+  <!-- Content description spoken when the "show history" icon is focused. -->
+  <string name="cd_show_history" description="Content description for a button that displays history (e.g., chat history, action history). [CHAR_LIMIT=14]">显示历史</string>
+  <!-- Content description spoken when the "more options" icon is focused. -->
+  <string name="cd_more_options" description="Content description for the button that opens a menu with additional options. [CHAR_LIMIT=14]">更多选项</string>
+  <!-- Content description spoken when the "help" icon is focused. -->
+  <string name="cd_help" description="Content description for the help icon button. [CHAR_LIMIT=6]">帮助</string>
+  <!-- Content description spoken when the "menu" icon is focused. -->
+  <string name="cd_menu" description="Content description for the main navigation menu button (hamburger menu). [CHAR_LIMIT=6]">菜单</string>
+  <!-- Content description spoken when the "scroll to bottom" button is focused. -->
+  <string name="cd_scroll_to_bottom" description="Content description for the button that scrolls the list/chat to the bottom. [CHAR_LIMIT=18]">滚动到底部</string>
+  <!-- Content description spoken when the "chat history" icon is focused. -->
+  <string name="cd_chat_history" description="Content description for the button that shows the chat history. [CHAR_LIMIT=14]">对话历史</string>
+
+  <!-- Strings for HomeScreen, Model Manager, Settings, and Chat -->
+  <!-- Title of the dialog for importing a model. -->
+  <string name="import_model" translatable="true" description="Title of the dialog that allows users to import a model from their local storage. [CHAR_LIMIT=14]">导入模型</string>
+  <!-- Button label to confirm importing a model. -->
+  <string name="import_action" translatable="true" description="Label for the button that confirms and starts the model import process. [CHAR_LIMIT=8]">导入</string>
+  <!-- Error message prefix when model import fails. -->
+  <string name="failed_to_import" translatable="true" description="Error message shown when a model import process fails. [CHAR_LIMIT=18]">导入失败</string>
+  <!-- Error message when model import fails due to connection issue. -->
+  <string name="error_internet_connection" translatable="true" description="Error message advising the user to check their internet connection. [CHAR_LIMIT=60]">请检查您的网络连接后重试。</string>
+  <!-- Button label to retry model import. -->
+  <string name="retry" translatable="true" description="Label for a button to retry a failed operation (e.g., reloading data). [CHAR_LIMIT=7]">重试</string>
+  <!-- Title of the theme selection setting. -->
+  <string name="theme_title" translatable="true" description="Label for the settings section or configuration key where users can choose the visual theme of the app (e.g., Light, Dark). [CHAR_LIMIT=7]">主题</string>
+  <!-- Title of the section for third-party libraries in settings. -->
+  <string name="third_party_libraries" translatable="true" description="Label for the settings section that contains information about third-party libraries used in the app. [CHAR_LIMIT=23]">第三方库</string>
+  <!-- Button label to view licenses of third-party libraries. -->
+  <string name="view_licenses" translatable="true" description="Label for the button that opens the screen displaying licenses for third-party libraries. [CHAR_LIMIT=15]">查看许可</string>
+  <!-- Label for 'Auto' theme option. -->
+  <string name="theme_auto" translatable="true" description="Label for the system-default or automatic theme option, which follows the system settings. [CHAR_LIMIT=6]">自动</string>
+  <!-- Label for 'Light' theme option. -->
+  <string name="theme_light" translatable="true" description="Label for the light theme option. [CHAR_LIMIT=7]">浅色</string>
+  <!-- Label for 'Dark' theme option. -->
+  <string name="theme_dark" translatable="true" description="Label for the dark theme option. [CHAR_LIMIT=6]">深色</string>
+  <!-- General fallback label for unknown values. -->
+  <string name="unknown" translatable="true" description="Fallback label when the theme state is unknown or undefined. [CHAR_LIMIT=9]">未知</string>
+  <!-- Label for stats button or section. -->
+  <string name="stats" translatable="true" description="Label or header for the section displaying performance statistics of a message generation (e.g., speed, tokens). [CHAR_LIMIT=7]">统计</string>
+
+  <!-- Button label to acknowledge user agreement for gated models. -->
+  <string name="acknowledge_user_agreement" translatable="true" description="Title of the dialog asking the user to acknowledge and agree to a user agreement before downloading a model. [CHAR_LIMIT=28]">确认用户协议</string>
+  <!-- Explanatory text for gated model user agreement dialog. -->
+  <string name="gated_model_agreement_help" translatable="true" description="Instruction explaining that the model is gated and the user must agree to terms externally before downloading. [CHAR_LIMIT=170]">这是一个受限模型。请点击下方按钮查看并同意用户协议。接受后，只需关闭该标签页即可继续下载模型。</string>
+  <!-- Button label to open user agreement in browser. -->
+  <string name="open_user_agreement" translatable="true" description="Label for the button that opens the user agreement in a web browser. [CHAR_LIMIT=21]">打开用户协议</string>
+  <!-- Error message for unknown network issues. -->
+  <string name="error_unknown_network" translatable="true" description="Title for the error dialog when an unspecified network error occurs. [CHAR_LIMIT=23]">未知网络错误</string>
+  <!-- Error message suggesting to check internet connection. -->
+  <string name="error_check_internet" translatable="true" description="Message in the network error dialog asking the user to verify their internet connection. [CHAR_LIMIT=40]">请检查您的网络连接。</string>
+  <!-- Title of dialog warning that a skill is disabled. %s is the skill name. -->
+  <string name="disabled_skill_dialog_title" translatable="true" description="Title of the alert dialog indicating that a specific agent skill (passed as a parameter) is disabled. [CHAR_LIMIT=38]">「%s」技能当前已禁用</string>
+  <!-- Introductory text for Agent Skills screen. Contains HTML links. -->
+  <string name="agent_skills_intro" translatable="true" description="Introductory text explaining what agent skills are, with HTML links to documentation/discussions and a placeholder for the agent name. [CHAR_LIMIT=271]">通过加载不同技能或 <![CDATA[<a href="%1$s">创建您自己的技能</a>]]>，使用专业的高阶推理能力。在 <![CDATA[<a href="%2$s">GitHub 讨论区</a>]]> 探索社区贡献的技能。\n\n尝试点击下方的示例提示词，看看 %3$s 的实际表现！</string>
+
+  <!-- Config Labels -->
+  <!-- Label for the 'Max tokens' option in the model configuration dialog. -->
+  <string name="config_label_max_tokens" translatable="false">Max tokens</string>
+  <!-- Label for the 'Max output tokens' option in the model configuration dialog. -->
+  <string name="config_label_max_output_tokens">最大输出 token 数</string>
+  <!-- Label for the 'TopK' option in the model configuration dialog. -->
+  <string name="config_label_topk" translatable="false">TopK</string>
+  <!-- Label for the 'TopP' option in the model configuration dialog. -->
+  <string name="config_label_topp" translatable="false">TopP</string>
+  <!-- Label for the 'Temperature' option in the model configuration dialog. -->
+  <string name="config_label_temperature" translatable="false">Temperature</string>
+  <!-- Label for the 'Default max tokens' option in the model configuration dialog. -->
+  <string name="config_label_default_max_tokens">默认最大 token 数</string>
+  <!-- Label for the 'Default TopK' option in the model configuration dialog. -->
+  <string name="config_label_default_topk" translatable="false">Default TopK</string>
+  <!-- Label for the 'Default TopP' option in the model configuration dialog. -->
+  <string name="config_label_default_topp" translatable="false">Default TopP</string>
+  <!-- Label for the 'Default temperature' option in the model configuration dialog. -->
+  <string name="config_label_default_temperature" translatable="false">Default temperature</string>
+  <!-- Label for the 'Support image' option in the model configuration dialog. -->
+  <string name="config_label_support_image" translatable="false">Support image</string>
+  <!-- Label for the 'Support audio' option in the model configuration dialog. -->
+  <string name="config_label_support_audio" translatable="false">Support audio</string>
+  <!-- Label for the 'Support tiny garden' option in the model configuration dialog. -->
+  <string name="config_label_support_tiny_garden">支持 Tiny Garden</string>
+  <!-- Label for the 'Support mobile actions' option in the model configuration dialog. -->
+  <string name="config_label_support_mobile_actions">支持 Mobile Actions</string>
+  <!-- Label for the 'Support thinking' option in the model configuration dialog. -->
+  <string name="config_label_support_thinking" translatable="false">Support thinking</string>
+  <!-- Label for the 'Support speculative decoding' option in the model configuration dialog. -->
+  <string name="config_label_support_speculative_decoding">支持投机解码</string>
+  <!-- Label for the 'Enable thinking' option in the model configuration dialog. -->
+  <string name="config_label_enable_thinking" translatable="false">Enable thinking</string>
+  <!-- Label for the 'Enable speculative decoding' option in the model configuration dialog. -->
+  <string name="config_label_enable_speculative_decoding">启用投机解码</string>
+  <!-- Label for the 'Max result count' option in the model configuration dialog. -->
+  <string name="config_label_max_result_count">最大结果数</string>
+  <!-- Label for the 'Use GPU' option in the model configuration dialog. -->
+  <string name="config_label_use_gpu" translatable="false">Use GPU</string>
+  <!-- Label for the 'Accelerator' option in the model configuration dialog. -->
+  <string name="config_label_accelerator" translatable="false">Accelerator</string>
+  <!-- Label for the 'Vision accelerator' option in the model configuration dialog. -->
+  <string name="config_label_vision_accelerator" translatable="false">Vision accelerator</string>
+  <!-- Label for the 'Compatible accelerators' option in the model configuration dialog. -->
+  <string name="config_label_compatible_accelerators" translatable="false">Compatible accelerators</string>
+  <!-- Label for the 'Warm up iterations' option in the model configuration dialog. -->
+  <string name="config_label_warm_up_iterations">预热轮次</string>
+  <!-- Label for the 'Benchmark iterations' option in the model configuration dialog. -->
+  <string name="config_label_benchmark_iterations" translatable="false">Benchmark iterations</string>
+  <!-- Label for the 'Iterations' option in the model configuration dialog. -->
+  <string name="config_label_iterations" translatable="false">Iterations</string>
+  <!-- Label for the 'Model type' option in the model configuration dialog. -->
+  <string name="config_label_model_type" translatable="false">Model type</string>
+  <!-- Label for the 'Model' option in the model configuration dialog. -->
+  <string name="config_label_model" translatable="false">Model</string>
+  <!-- Label for the 'Number of turns before the conversation resets' option in the model configuration dialog. -->
+  <string name="config_label_reset_conversation_turn_count">对话自动重置的轮数</string>
+  <!-- Label for the 'Prefill tokens' option in the model configuration dialog. -->
+  <string name="config_label_prefill_tokens" translatable="false">Prefill tokens</string>
+  <!-- Label for the 'Decode tokens' option in the model configuration dialog. -->
+  <string name="config_label_decode_tokens" translatable="false">Decode tokens</string>
+  <!-- Label for the 'Number of runs' option in the model configuration dialog. -->
+  <string name="config_label_number_of_runs">运行次数</string>
+  <!-- Label indicating statistics on a specific accelerator. %1$s is the accelerator name. -->
+  <string name="stats_on_accelerator" translatable="true" description="Label for the section displaying performance statistics on a specific hardware accelerator (e.g., 'Stats on GPU'). [CHAR_LIMIT=15]">%1$s 统计</string>
+  <!-- First part of Gemma 4 introduction text. -->
+  <string name="gemma4_intro_part_1" translatable="true" description="First part of the introductory text on the home screen, preceding a link to the LiteRT community. [CHAR_LIMIT=53]">发现端侧 AI 模型的强大能力，来自 </string>
+  <!-- Second part of Gemma 4 introduction text. -->
+  <string name="gemma4_intro_part_2" translatable="true" description="Second part of the introductory text, connecting the LiteRT community link and the Gemma 4 link. [CHAR_LIMIT=26]">，全新推出 </string>
+  <string name="gemma4_label" translatable="false">Gemma 4</string>
+  <!-- Label for the 'Show 3D spinner during image gen' option in the model configuration dialog. -->
+  <string name="config_label_show_3d_spinner">生成图片时显示 3D 动画</string>
+  <!-- Label for the 'Font size' option in the model configuration dialog. -->
+  <string name="config_label_font_size" translatable="false">Font size</string>
+  <!-- Label for the 'Max character count' option in the model configuration dialog. -->
+  <string name="config_label_max_char_count">最大字符数</string>
+  <string name="new_badge" translatable="true" description="Badge label indicating a new feature. [CHAR_LIMIT=5]">新</string>
+  <!-- Home Screen Promos -->
+  <string name="gemma_reskin_try_gemma_4_chat" translatable="true" description="Promo card description to try Gemma 4 chat. [CHAR_LIMIT=50]">立即与最新的 Gemma 4 模型对话</string>
+  <string name="gemma_reskin_try_gemma_4_skills" translatable="true" description="Promo card description to try Gemma 4 skills. [CHAR_LIMIT=50]">让 Gemma 4 为您完成智能体任务</string>
+
+  <!-- Single-turn / Prompt Lab Placeholders -->
+  <string name="prompt_lab_response_placeholder" translatable="true" description="Placeholder text indicating where the model response will appear. [CHAR_LIMIT=30]">响应将显示在此处</string>
+  <string name="prompt_lab_enter_content_placeholder" translatable="true" description="Placeholder text in the input area for Prompt Lab. [CHAR_LIMIT=20]">输入内容</string>
+  <string name="prompt_lab_select_example_title" translatable="true" description="Title for the section showing example prompts. [CHAR_LIMIT=20]">选择示例</string>
+
+  <!-- Model Download -->
+  <string name="model_download_background_notice" translatable="true" description="Notice for Android users that the download will continue in the background if they switch apps or lock the device, and they will be notified when it is done. [CHAR_LIMIT=150]">您可以切换应用或锁定设备。\n下载将在后台继续。\n完成后我们会发送通知。</string>
+  <string name="model_download_try_button" translatable="true" description="Button label to download and try a model. [CHAR_LIMIT=20]">下载并试用</string>
+
+  <!-- Media Picker (dropdown menu) -->
+  <string name="media_picker_record_audio" translatable="true" description="Menu option to record an audio clip as input. [CHAR_LIMIT=25]">录制音频片段</string>
+  <string name="media_picker_pick_wav" translatable="true" description="Menu option to pick a local WAV audio file. [CHAR_LIMIT=20]">选择 WAV 文件</string>
+
+  <!-- Input History -->
+  <string name="text_input_history_title" translatable="true" description="Title of the history popup showing previous text inputs. [CHAR_LIMIT=25]">文本输入历史</string>
+  <string name="clear_history_title" translatable="true" description="Title of the alert confirming whether to clear input history. [CHAR_LIMIT=20]">清空历史？</string>
+  <string name="clear_history_message" translatable="true" description="Message asking the user to confirm clearing the input history. [CHAR_LIMIT=100]">确定要清空历史吗？此操作无法撤销。</string>
+
+  <!-- Prompt Lab Tabs -->
+  <string name="prompt_lab_tab_free_form" translatable="true" description="Label for the Free Form tab in Prompt Lab. [CHAR_LIMIT=15]">自由模式</string>
+  <string name="prompt_lab_tab_rewrite_tone" translatable="true" description="Label for the Rewrite Tone tab in Prompt Lab. [CHAR_LIMIT=15]">语气改写</string>
+  <string name="prompt_lab_tab_summarize_text" translatable="true" description="Label for the Summarize Text tab in Prompt Lab. [CHAR_LIMIT=15]">文本摘要</string>
+  <string name="prompt_lab_tab_code_snippet" translatable="true" description="Label for the Code Snippet tab in Prompt Lab. [CHAR_LIMIT=15]">代码生成</string>
+
+  <!-- Prompt Lab Labels -->
+  <string name="prompt_lab_label_tone" translatable="true" description="Label for the Tone input editor. [CHAR_LIMIT=10]">语气</string>
+  <string name="prompt_lab_label_style" translatable="true" description="Label for the Style input editor. [CHAR_LIMIT=10]">风格</string>
+  <string name="prompt_lab_label_language" translatable="true" description="Label for the Language input editor. [CHAR_LIMIT=10]">语言</string>
+
+  <!-- Prompt Lab Rewrite Tones -->
+  <string name="prompt_lab_tone_formal" translatable="true" description="Option for formal rewrite tone. [CHAR_LIMIT=15]">正式</string>
+  <string name="prompt_lab_tone_casual" translatable="true" description="Option for casual rewrite tone. [CHAR_LIMIT=15]">随意</string>
+  <string name="prompt_lab_tone_friendly" translatable="true" description="Option for friendly rewrite tone. [CHAR_LIMIT=15]">友好</string>
+  <string name="prompt_lab_tone_polite" translatable="true" description="Option for polite rewrite tone. [CHAR_LIMIT=15]">礼貌</string>
+  <string name="prompt_lab_tone_enthusiastic" translatable="true" description="Option for enthusiastic rewrite tone. [CHAR_LIMIT=15]">热情</string>
+  <string name="prompt_lab_tone_concise" translatable="true" description="Option for concise rewrite tone. [CHAR_LIMIT=15]">简洁</string>
+
+  <!-- Prompt Lab Summarization Styles -->
+  <string name="prompt_lab_summary_key_bullet_points" translatable="true" description="Option for summary in key bullet points (3-5). [CHAR_LIMIT=30]">要点列表（3-5条）</string>
+  <string name="prompt_lab_summary_short_paragraph" translatable="true" description="Option for summary in a short paragraph (1-2 sentences). [CHAR_LIMIT=35]">短段落（1-2句）</string>
+  <string name="prompt_lab_summary_concise_summary" translatable="true" description="Option for summary in a concise summary (~50 words). [CHAR_LIMIT=30]">精简摘要（约50字）</string>
+  <string name="prompt_lab_summary_headline_title" translatable="true" description="Option for summary as a headline / title. [CHAR_LIMIT=20]">标题/题目</string>
+  <string name="prompt_lab_summary_one_sentence" translatable="true" description="Option for summary in one-sentence summary. [CHAR_LIMIT=25]">一句话摘要</string>
+  <string name="prompt_lab_preview_prompt" translatable="true" description="Button label to preview the fully constructed prompt before sending. [CHAR_LIMIT=20]">预览提示词</string>
+  <!-- Label for the link to API documentation. [CHAR_LIMIT=20] -->
+  <string name="api_doc" translatable="true" description="Label for the link to API documentation.">API 文档</string>
+
+  <!-- Title for the Try Gemma 4 reskin onboarding section. [CHAR_LIMIT=30] -->
+  <string name="gemma_reskin_try_gemma_4_title" translatable="true" description="Title for the Try Gemma 4 reskin onboarding section.">立即试用 Gemma 4</string>
+  <!-- Description for the Try Gemma 4 reskin onboarding section. [CHAR_LIMIT=120] -->
+  <string name="gemma_reskin_try_gemma_4_description" translatable="true" description="Description for the Try Gemma 4 reskin onboarding section.">Gemma 4 E2B 和 E4B 已上线！在 AI 对话、智能体技能或其他场景中试用。</string>
+
+  <!-- Section header for other use cases. [CHAR_LIMIT=30] -->
+  <string name="explore_other_use_cases" translatable="true" description="Section header for other use cases.">探索其他场景</string>
+
+  <!-- Task Labels & Descriptions -->
+  <string name="task_label_ai_chat" translatable="false">AI Chat</string>
+  <string name="task_label_prompt_lab" translatable="false">Prompt Lab</string>
+  <string name="task_label_ask_image" translatable="false">Ask Image</string>
+  <string name="task_label_audio_scribe" translatable="false">Audio Scribe</string>
+  <string name="task_label_tiny_garden" translatable="false">Tiny Garden</string>
+  <string name="task_label_agent_skills" translatable="false">Agent Skills</string>
+  <!-- Description for the AI Chat task. [CHAR_LIMIT=100] -->
+  <string name="task_desc_ai_chat" translatable="true" description="Description for the AI Chat task.">与端侧大语言模型对话</string>
+  <!-- Short description for the AI Chat task. [CHAR_LIMIT=35] -->
+  <string name="task_short_desc_ai_chat" translatable="true" description="Short description for the AI Chat task.">与端侧 LLM 对话</string><!-- Description for the Ask Image task. [CHAR_LIMIT=100] -->
+  <string name="task_desc_ask_image" translatable="true" description="Description for the Ask Image task.">使用端侧大语言模型询问图片相关问题</string>
+  <!-- Short description for the Ask Image task. [CHAR_LIMIT=35] -->
+  <string name="task_short_desc_ask_image" translatable="true" description="Short description for the Ask Image task.">询问图片相关问题</string><!-- Description for the Audio Scribe task. [CHAR_LIMIT=100] -->
+  <string name="task_desc_audio_scribe" translatable="true" description="Description for the Audio Scribe task.">使用端侧大语言模型即时转录和/或翻译音频片段</string>
+  <!-- Short description for the Audio Scribe task. [CHAR_LIMIT=35] -->
+  <string name="task_short_desc_audio_scribe" translatable="true" description="Short description for the Audio Scribe task.">转录和翻译音频</string><!-- Description for the Prompt Lab task. [CHAR_LIMIT=100] -->
+  <string name="task_desc_prompt_lab" translatable="true" description="Description for the Prompt Lab task.">端侧大语言模型的单轮使用场景</string>
+  <!-- Short description for the Prompt Lab task. [CHAR_LIMIT=35] -->
+  <string name="task_short_desc_prompt_lab" translatable="true" description="Short description for the Prompt Lab task.">单轮使用场景</string>
+  <!-- Description for the Agent Skills task. [CHAR_LIMIT=100] -->
+  <string name="task_desc_agent_skills" translatable="true" description="Description for the Agent Skills task.">使用带技能和工具的端侧大语言模型对话</string>
+  <!-- Short description for the Agent Skills task. [CHAR_LIMIT=35] -->
+  <string name="task_short_desc_agent_skills" translatable="true" description="Short description for the Agent Skills task.">通过对话完成智能体任务</string>
+
+  <!-- Label for the link to example code. [CHAR_LIMIT=20] -->
+  <string name="example_code" translatable="true" description="Label for the link to example code.">示例代码</string>
+
+  <!-- Plural string showing the number of models available for a task. [CHAR_LIMIT=15] -->
+  <plurals name="task_card_models_count" translatable="true" description="Plural string showing the number of models available for a task.">
+    <item quantity="one">1 个模型</item>
+    <item quantity="other">%1$d 个模型</item>
+  </plurals>
+
+  <!-- Agent Skills Chips -->
+  <!-- Label for the Interactive Map skill chip. [CHAR_LIMIT=20] -->
+  <string name="skill_chip_interactive_map_label" translatable="true" description="Label for the Interactive Map skill chip.">交互式地图</string>
+  <!-- Label for the Schedule Reminder skill chip. [CHAR_LIMIT=20] -->
+  <string name="skill_chip_schedule_reminder_label" translatable="true" description="Label for the Schedule Reminder skill chip.">日程提醒</string>
+  <!-- Label for the Track my mood skill chip. [CHAR_LIMIT=20] -->
+  <string name="skill_chip_track_mood_label" translatable="true" description="Label for the Track my mood skill chip.">记录心情</string>
+  <!-- Label for the Learn something new skill chip. [CHAR_LIMIT=20] -->
+  <string name="skill_chip_learn_something_new_label" translatable="true" description="Label for the Learn something new skill chip.">学习新事物</string>
+  <!-- Label for the Query Wikipedia skill chip. [CHAR_LIMIT=20] -->
+  <string name="skill_chip_query_wikipedia_label" translatable="true" description="Label for the Query Wikipedia skill chip.">搜索维基百科</string>
+  <!-- Label for the Generate QR code skill chip. [CHAR_LIMIT=20] -->
+  <string name="skill_chip_generate_qr_code_label" translatable="true" description="Label for the Generate QR code skill chip.">生成二维码</string>
+  <!-- Description for the Mobile Actions task. [CHAR_LIMIT=100] -->
+  <string name="task_desc_mobile_actions" translatable="true" description="Description for the Mobile Actions task.">通过 Function Gemma 执行各种设备操作</string><!-- Description for the Tiny Garden task. [CHAR_LIMIT=300] -->
+  <string name="task_desc_tiny_garden" translatable="true" description="Description for the Tiny Garden task.">使用自然语言在这个完全离线的小游戏中种植、浇水和收获。\n\n注意：这由针对延迟优化的实验性 FunctionGemma 模型驱动。由于其体积小巧（270M），它在简单指令上表现良好，但对更复杂的交互响应可能有所不同。</string>
+  <!-- Short description for the Tiny Garden task. [CHAR_LIMIT=35] -->
+  <string name="task_short_desc_tiny_garden" translatable="true" description="Short description for the Tiny Garden task.">用自然语言种植</string>
+
+  <string name="config_hint_button_cd" translatable="true" description="Content description for the button that shows an explanation of a model parameter.">参数说明</string>
+
+<!-- 参数说明：设置界面每个参数旁的说明按钮所展示的文案（M1） -->
+  <string name="config_hint_temperature" translatable="true">控制随机性。低（0.1-0.3）：输出确定、严谨，适合问答与代码；中（0.6-0.8）：均衡；高（1.0 及以上）：更有创意和多样性，但可能跑题或胡言乱语。</string>
+  <string name="config_hint_topk" translatable="true">每一步只保留概率最高的 K 个候选词。小（1-10）：聚焦、精确；大（40-100）：更多样。设为 1 时输出接近确定。</string>
+  <string name="config_hint_topp" translatable="true">核采样：只从累积概率超过 P 的最小候选集合中取样。低（0.5-0.7）：保守；高（0.9-1.0）：丰富。通常只调 TopP 或 Temperature 其中之一，不要同时调。</string>
+  <string name="config_hint_max_tokens" translatable="true">上下文总长度（输入 + 输出）的 token 上限。调大能让模型记住更多对话，但占用更多内存、速度更慢；内存不足时请调小。</string>
+  <string name="config_hint_max_output_tokens" translatable="true">单次回复的最大长度（token）。写长文请调大，追求响应速度请调小。</string>
+  <string name="config_hint_reset_conversation_turn_count" translatable="true">保留多少轮对话后自动重置。长对话下调小它可以节省上下文、保持回复速度。</string>
+  <string name="config_hint_accelerator" translatable="true">指定运行模型的硬件。CPU：兼容性最好、最慢；GPU：快，但占用更多内存；NPU：在支持的芯片上能效最佳，但可能不支持部分算子。</string>
+  <string name="config_hint_use_gpu" translatable="true">用 GPU 而非 CPU 运行模型。通常更快，代价是更大的内存与电量消耗。</string>
+  <string name="config_hint_speculative_decoding" translatable="true">由小模型先猜出候选词、再由主模型校验，可明显提升生成速度，但需要额外内存。</string>
+  <string name="config_hint_enable_thinking" translatable="true">让模型先逐步推理再作答。数学与逻辑题表现更好，但速度更慢、占用更多上下文。</string>
+  <string name="config_hint_support_image" translatable="true">该模型是否支持输入图片。</string>
+  <string name="config_hint_support_audio" translatable="true">该模型是否支持输入音频。</string>
+  <string name="config_hint_warm_up_iterations" translatable="true">正式计时前丢弃的预热轮次，用于让硬件进入稳定状态。预热越充分，数据越稳定。</string>
+  <string name="config_hint_benchmark_iterations" translatable="true">参与计时的运行次数。次数越多平均值越可靠，但耗时更长。</string>
+  <string name="config_hint_prefill_tokens" translatable="true">用于测量首字延迟（prefill）的提示长度，即模型读取输入的速度。</string>
+  <string name="config_hint_decode_tokens" translatable="true">用于测量生成速度（decode）的生成 token 数，即模型输出回复的速度。</string>
+  <string name="config_hint_number_of_runs" translatable="true">整个基准测试重复执行的次数。</string>
+
+
+  <!-- 对话导出（M1）：保存为 Markdown 相关文案 -->
+  <string name="export_current_session" translatable="true" description="把当前对话导出为 Markdown 文件的按钮文案。">导出本对话</string>
+  <string name="export_all_sessions" translatable="true" description="把全部历史对话导出为 Markdown 文件的按钮文案。">导出全部</string>
+  <string name="export_success" translatable="true" description="对话导出成功时的提示。">已导出</string>
+  <string name="export_failed" translatable="true" description="对话导出失败时的提示。">导出失败</string>
+  <string name="export_dialog_title" translatable="true" description="导出前确认文件名的对话框标题。">保存对话</string>
+  <string name="export_dialog_file_name_label" translatable="true" description="导出对话框中文件名输入框的标签。">文件名</string>
+  <string name="export_dialog_extension_hint" translatable="true" description="提示 .md 后缀会自动补全。">保存时自动补全 .md 后缀</string>
+
+
+  <!-- 消息操作（M1）：朗读 / 多选 -->
+  <string name="speak" translatable="true" description="用语音朗读一条消息的按钮文案。">朗读</string>
+
+
+
+  <!-- Prompt Lab 自定义模板选项（M1 / 需求 H3） -->
+  <string name="prompt_lab_add_custom_option" translatable="true" description="下拉菜单中让用户为模板新增自定义选项的入口。">添加自定义…</string>
+  <string name="prompt_lab_custom_option_name_label" translatable="true" description="新增自定义选项对话框中，选项名称输入框的标签。">选项名称</string>
+  <string name="prompt_lab_custom_option_duplicate" translatable="true" description="自定义选项重名时的错误提示。">该选项已存在</string>
+  <string name="prompt_lab_custom_option_none" translatable="true" description="模板选择器未选中任何选项时显示的占位文案。">未选择</string>
+  <string name="cd_remove_custom_option" translatable="true" description="删除用户自定义模板选项按钮的无障碍描述。">删除自定义选项</string>
+
+
+  <!-- 外部 API 服务配置（M2 / 需求 B1） -->
+  <string name="api_provider_section_title" translatable="true" description="外部大模型 API 配置区标题。">外部 API 服务</string>
+  <string name="api_provider_use_remote_title" translatable="true" description="开关标题：开启后对话改由外部 API 处理，而不是本地端侧模型。">使用外部 API</string>
+  <string name="api_provider_use_remote_desc" translatable="true" description="说明使用外部 API 的联网与隐私影响。">开启后，你发送的内容会传给你配置的第三方服务并离开本机；关闭时始终使用本地端侧模型。</string>
+  <string name="cloud_model_name" translatable="true" description="配置外部 API 后显示的虚拟云端模型名称。">云端模型 (API)</string>
+  <string name="cloud_model_info" translatable="true" description="模型列表中虚拟云端模型的描述。">**云端推理**\n\n对话将路由到设置中配置的外部 API，无需下载本地模型。\n\n- 需要网络连接\n- 消息会发送给你配置的第三方服务\n- 可在 设置 &gt; 外部 API 服务 中管理配置</string>
+
+  <!-- Agent 管理器（M5 / 需求 F1） -->
+  <string name="agent_manager_title" translatable="true" description="Agent 管理器标题。">Agent 管理</string>
+  <string name="agent_manager_desc" translatable="true" description="Agent 管理器标题下的说明文字。">Agent 是标准 JSON 文件，可查看、编辑、导入导出。点按条目展开详情与操作。</string>
+  <string name="agent_new" translatable="true" description="新建 Agent 按钮。">新建 Agent</string>
+  <string name="agent_import_url" translatable="true" description="从 URL 导入 Agent 按钮。">从 URL 导入</string>
+  <string name="agent_url_label" translatable="true" description="导入 Agent 时 URL 输入框标签。">Agent JSON 文件 URL</string>
+  <string name="agent_name_label" translatable="true" description="Agent 名称输入框标签。">名称</string>
+  <string name="agent_desc_label" translatable="true" description="Agent 描述输入框标签。">描述</string>
+  <string name="agent_prompt_label" translatable="true" description="Agent 系统提示词输入框标签。">系统提示词</string>
+  <string name="agent_save" translatable="true" description="保存 Agent 按钮。">保存</string>
+  <string name="agent_cancel" translatable="true" description="取消编辑 Agent 按钮。">取消</string>
+  <string name="agent_entry_use" translatable="true" description="把 Agent 应用到当前会话的按钮。">使用</string>
+  <string name="agent_entry_edit" translatable="true" description="编辑 Agent 按钮。">编辑</string>
+  <string name="agent_entry_duplicate" translatable="true" description="把内置 Agent 复制为可编辑副本的按钮。">创建副本</string>
+  <string name="agent_entry_delete" translatable="true" description="删除自定义 Agent 按钮。">删除</string>
+  <string name="agent_builtin_badge" translatable="true" description="内置 Agent 徽标。">内置</string>
+  <string name="agent_custom_badge" translatable="true" description="自定义 Agent 徽标。">自定义</string>
+  <string name="agent_file_path_label" translatable="true" description="Agent 文件路径前缀文字。">文件位置</string>
+  <string name="agent_use_hint" translatable="true" description="说明使用 Agent 效果的提示。">使用后会把该 Agent 的系统提示词应用到当前会话。</string>
+  <string name="agent_picker_label" translatable="true" description="输入区 Agent 选择按钮在未选中时的文案。">Agent</string>
+  <string name="api_provider_active" translatable="true" description="标记当前正在使用的 API 配置。">当前使用</string>
+  <string name="api_provider_none" translatable="true" description="尚未配置任何外部 API 时显示的文案。">未配置外部 API</string>
+  <string name="api_provider_manage" translatable="true" description="打开外部 API 配置管理页的按钮文案。">管理</string>
+  <string name="api_provider_add" translatable="true" description="新增一条 API 配置的按钮文案。">添加</string>
+  <string name="api_provider_edit" translatable="true" description="编辑已有 API 配置的按钮文案。">编辑</string>
+  <string name="api_provider_name_label" translatable="true" description="API 配置名称输入框的标签。">名称</string>
+  <string name="api_provider_base_url_label" translatable="true" description="API 配置服务地址输入框的标签。">服务地址（BaseURL）</string>
+  <string name="api_provider_api_key_label" translatable="true" description="API 配置密钥输入框的标签。">密钥（API Key）</string>
+  <string name="api_provider_model_id_label" translatable="true" description="API 配置模型名输入框的标签。">模型名</string>
+  <string name="api_provider_system_prompt_label" translatable="true" description="API 配置系统提示词输入框的标签（可选）。">系统提示词（可选）</string>
+  <string name="api_provider_advanced_title" translatable="true" description="API 配置采样参数区的标题（可选）。">采样参数（可选）</string>
+  <string name="api_provider_advanced_desc" translatable="true" description="提示采样参数留空时使用服务端默认值。">留空则使用服务端默认值。</string>
+  <string name="api_provider_temperature_label" translatable="true" description="温度参数输入框的标签。">温度</string>
+  <string name="api_provider_top_p_label" translatable="true" description="Top P 参数输入框的标签。">Top P</string>
+  <string name="api_provider_max_tokens_label" translatable="true" description="最大输出 token 数输入框的标签。">最大输出</string>
+  <string name="api_provider_preset_title" translatable="true" description="内置服务预设列表区的标题。">从预设创建</string>
+  <string name="api_provider_empty_list" translatable="true" description="API 配置列表为空时的提示文案。">还没有任何配置，可从下方预设快速创建。</string>
+  <string name="api_provider_delete_cd" translatable="true" description="删除某条 API 配置按钮的无障碍描述。">删除该配置</string>
+  <string name="api_provider_invalid" translatable="true" description="保存 API 配置时信息不完整给出的错误提示。">请填写服务地址与模型名。</string>
+  <string name="api_provider_cleartext_hint" translatable="true" description="关于安卓禁止明文 HTTP 传输的提示。">使用 http:// 地址需要系统允许明文流量。</string>
+  <string name="api_provider_test">测试</string>
+  <string name="api_provider_testing">正在测试连接…</string>
+  <string name="api_provider_test_success">连接成功，耗时 %1$d 毫秒 · 模型回复：%2$s</string>
+  <string name="feature_flags_title">功能开关</string>
+  <string name="feature_flags_subtitle">当前版本全部功能免费开放。以下开关位为将来订阅制预留，目前均为启用状态。</string>
+  <string name="feature_flag_enabled">已开放</string>
+  <string name="feature_flag_locked">已锁定</string>
+  <string name="feature_flag_cloud_model">云端模型通道</string>
+  <string name="feature_flag_cloud_model_desc">多服务商 OpenAI 兼容云端推理（M2）</string>
+  <string name="feature_flag_tts_voices">高级 TTS 音色</string>
+  <string name="feature_flag_tts_voices_desc">语音设置中的多角色、多语气（M3）</string>
+  <string name="feature_flag_timed_tasks">定时任务</string>
+  <string name="feature_flag_timed_tasks_desc">定时任务、任务中心与语音唤醒（M3）</string>
+  <string name="feature_flag_custom_prompts">自定义提示词模板</string>
+  <string name="feature_flag_custom_prompts_desc">Prompt Lab 用户自定义模板（M1）</string>
+  <string name="feature_flag_chat_export">会话保存与导出</string>
+  <string name="feature_flag_chat_export_desc">对话导出为 Markdown（M1）</string>
+  <string name="voice_settings_title">语音设置</string>
+  <string name="voice_settings_summary">引擎：%1$s</string>
+  <string name="voice_settings_open">设置</string>
+  <string name="voice_settings_engine">朗读引擎</string>
+  <string name="voice_settings_rate">语速</string>
+  <string name="voice_settings_pitch">音调</string>
+  <string name="voice_settings_role">音色角色</string>
+  <string name="voice_settings_preview">试听</string>
+  <string name="voice_settings_current">当前</string>
+  <string name="voice_settings_role_offline_hint">该角色需要离线语音引擎。离线引擎就绪前将使用默认角色朗读。</string>
+  <string name="voice_engine_system">系统 TTS</string>
+  <string name="voice_engine_system_desc">系统内置，零成本，随系统语言支持中文</string>
+  <string name="voice_engine_offline">离线语音引擎</string>
+  <string name="voice_engine_offline_desc">Sherpa-ONNX，中文效果好、完全离线</string>
+  <string name="voice_engine_offline_not_ready">离线语音包尚未下载，当前回退系统 TTS。</string>
+  <string name="voice_system_tts_error">当前设备未检测到可用的系统语音引擎，请在系统设置中启用语音服务。</string>
+  <string name="voice_open_tts_settings">打开系统 TTS 设置</string>
+  <!-- N6-A：朗读/试听静默失败时的即时提示（Snackbar / 设置页），避免「点了没反应」。 -->
+  <string name="voice_speak_failed" translatable="true">系统语音不可用，无法朗读</string>
+  <!-- N6-A：系统 TTS 失败原因展示，%1$s 为引擎返回的状态码翻译文本（便于排查）。 -->
+  <string name="voice_tts_reason" translatable="true">原因：%1$s</string>
+  <string name="voice_pack_missing">尚未下载离线语音包。下载一次即可启用离线语音合成（约 160MB，中文）。</string>
+  <string name="voice_pack_download_btn">下载语音包</string>
+  <string name="voice_pack_downloading">正在下载语音包… %1$d%%</string>
+  <string name="voice_pack_unzipping">正在安装语音包…</string>
+  <string name="voice_pack_ready">离线语音包已就绪</string>
+  <string name="voice_pack_failed">语音包下载失败，请检查网络后重试。</string>
+  <string name="voice_pack_retry">重试</string>
+  <string name="voice_pack_import">本地导入</string>
+  <string name="voice_pack_sources">下载来源：ModelScope / HF-Mirror / GitHub，也可本地导入模型文件</string>
+  <string name="voice_pack_files_hint">本地导入需准备 3 个文件（model.onnx >5MB、lexicon.txt、tokens.txt）放在同一文件夹，再选择该文件夹导入。</string>
+  <string name="voice_guide_to_settings_title">导入语音模型？</string>
+  <string name="voice_guide_to_settings_body">这是语音朗读（TTS）模型，不能在此导入。请到 设置→语音→语音包→本地导入，准备 3 个文件：model.onnx、lexicon.txt、tokens.txt。</string>
+  <string name="voice_guide_to_settings_action">前往语音设置</string>
+  <string name="voice_pack_clear">清除</string>
+  <string name="voice_role_default">默认</string>
+  <string name="voice_role_female_gentle">温柔女声</string>
+  <string name="voice_role_male_natural">自然男声</string>
+  <string name="voice_role_child_clear">清亮童声</string>
+  <string name="task_default_title">Encourage 提醒</string>
+  <string name="task_default_content">到时间啦！</string>
+  <string name="task_center_title">任务中心</string>
+  <string name="task_center_summary">%1$d 个已启用</string>
+  <string name="task_center_open">管理</string>
+  <string name="task_center_empty">还没有任务。点 + 创建一个。</string>
+  <string name="task_add">新建任务</string>
+  <string name="task_add_title">新建任务</string>
+  <string name="task_edit_title">编辑任务</string>
+  <string name="task_title_label">标题</string>
+  <string name="task_content_label">内容（触发时朗读并通知）</string>
+  <string name="task_ai_prompt_label">AI 提示词（可选）</string>
+  <string name="task_ai_prompt_hint">留空则仅提醒。填写后，触发时调用本地或外部 AI 生成回复并朗读。</string>
+  <string name="task_ai_badge">AI</string>
+  <string name="task_hour_label">时</string>
+  <string name="task_minute_label">分</string>
+  <string name="task_repeat_label">重复星期</string>
+  <string name="task_repeat_once_hint">未选择星期：仅执行一次。</string>
+  <string name="task_mon">一</string>
+  <string name="task_tue">二</string>
+  <string name="task_wed">三</string>
+  <string name="task_thu">四</string>
+  <string name="task_fri">五</string>
+  <string name="task_sat">六</string>
+  <string name="task_sun">日</string>
+  <string name="task_edit">编辑</string>
+  <string name="task_run_now">立即执行</string>
+  <string name="task_delete">删除</string>
+  <string name="task_center_hint">提醒使用系统精确闹钟。未授权时最多延迟 10 秒。</string>
+  <string name="local_server_title">本地 API 服务</string>
+  <string name="local_server_status_running">运行中 · 端口 %1$d</string>
+  <string name="local_server_status_stopped">未运行</string>
+  <string name="local_server_port">端口</string>
+  <string name="local_server_token">鉴权 Token（可选）</string>
+  <string name="local_server_token_hint">留空表示不鉴权。开放局域网时建议设置 Token。</string>
+  <string name="local_server_lan">允许局域网访问</string>
+  <string name="local_server_lan_desc">绑定 0.0.0.0，同一网络的其他设备可调用本服务</string>
+  <string name="local_server_lan_no_token_warn">安全提醒：已开放局域网访问但未设置 Token，同一网络内的任何人都能调用本地模型。</string>
+  <string name="local_server_usage_title">使用示例（curl）</string>
+
+  <!-- 文件管理器（M6 / H6） -->
+  <string name="drawer_file_manager_label">文件管理器</string>
+  <string name="drawer_file_manager_description">浏览与管理本机文件</string>
+  <string name="file_manager_title">文件管理器</string>
+  <string name="file_manager_need_auth">请选择一个文件夹作为根目录进行浏览。打开文件时仅读取；改动将应用到本机存储。</string>
+  <string name="file_manager_choose_root">选择存储位置</string>
+  <string name="file_manager_empty">此文件夹为空。</string>
+  <string name="file_manager_open">打开</string>
+  <string name="file_manager_share">分享</string>
+  <string name="file_manager_rename">重命名</string>
+  <string name="file_manager_delete">删除</string>
+  <string name="file_manager_new_folder">新建文件夹</string>
+  <string name="file_manager_delete_confirm">确定删除此项吗？此操作不可撤销。</string>
+  <string name="file_manager_create_failed">创建文件夹失败。</string>
+  <string name="file_manager_rename_failed">重命名失败，名称可能已存在。</string>
+  <string name="file_manager_delete_failed">删除此项失败。</string>
+  <string name="file_manager_op_failed">操作失败。</string>
+  <string name="file_manager_edit">编辑</string>
+  <string name="file_manager_reading">正在读取文件…</string>
+  <string name="file_manager_read_failed">无法读取此文件，可能不是文本文件或文件已损坏。</string>
+  <string name="file_manager_edit_hint">文本内容（可编辑）</string>
+  <string name="file_manager_save">保存</string>
+  <string name="file_manager_saving">正在保存…</string>
+  <string name="file_manager_saved">已保存</string>
+  <string name="file_manager_save_failed">保存失败，该目录可能为只读。</string>
+
+</resources>

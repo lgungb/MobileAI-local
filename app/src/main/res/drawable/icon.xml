@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Encourage 应用图标前景（矢量）。
+  【设计说明】白色上扬箭头 + 右上角四角星火，寓意"鼓舞、向上"。
+  【使用位置】mipmap-anydpi-v26/ic_launcher.xml 的 foreground 与 monochrome。
+  【注意事项】内容绘制在 108dp 视口的中心安全区（约 21.6~86.4）内，
+  以适配各厂商启动器的自适应图标裁剪。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 上升箭头 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54 36 L70 52 L61 52 L61 75 L47 75 L47 52 L38 52 Z" />
+    <!-- 四角星火（点亮/激励） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M76 25 L78 30 L83 32 L78 34 L76 39 L74 34 L69 32 L74 30 Z" />
+</vector>

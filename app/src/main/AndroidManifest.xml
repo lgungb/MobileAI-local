@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.encourage.app"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Encourage：SDK 版本策略（N6-A）
+      - compileSdk / targetSdk 由 37 下调为 36（Android 16），与用户真机（API 36）对齐。
+      - 目的：彻底消除「编译期能过（compileSdk=37）、真机 API 36 上跑出 NoSuchMethodError」的
+        风险。目标 SDK 与设备 API 一致，行为最可控。
+      - minSdk 保持 31（Android 12），与 build.gradle.kts 中的 minSdk = 31 一致。
+      注意：build.gradle.kts 里的 compileSdk / targetSdk 是最终生效值，此处仅作标记保持一致。
+    -->
+    <uses-sdk
+        android:minSdkVersion="31"
+        android:compileSdkVersion="36"
+        android:targetSdkVersion="36" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="com.google.android.apps.aicore.service.BIND_SERVICE" />
+
+    <!-- Encourage: 定时任务开机恢复（BootReceiver），M3 自动化功能依赖 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Encourage: 定时任务精确闹钟（M3 / 需求 E1），Android 12+ 需用户授权 -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature android:name="android.hardware.camera.flash"
+        android:required="false" />
+    <uses-feature android:name="android.hardware.npu" android:required="false" />
+
+    <!--
+      ==========================================================================
+      Encourage：包可见性声明（<queries>）  —— N6-A「语音点了没声音」的根因修复
+      ==========================================================================
+      背景：自 Android 11（API 30）起系统引入「包可见性（Package Visibility）」限制，
+      targetSdk >= 30 的应用默认「看不见」其它应用，也无法查询到其它应用提供的组件。
+      本项目 targetSdk = 36，因此下面的场景如果不在 <queries> 中显式声明，
+      PackageManager 查询会返回空 / 抛 NameNotFoundException，表现为「功能点了没反应」。
+
+      规则提醒（Android 11+ 对 <queries><intent><data> 的限制）：
+      1. 一个 <intent> 内最多一个 <action>、一个 <data>；
+      2. <data> 只能使用 scheme / host / mimeType 三个属性，不能用 path/port 等；
+      3. mimeType 的通配符只允许 "*/*"，不允许 "image/*"、"text/*" 这类前缀通配。
+    -->
+    <queries>
+
+        <!--
+          ★ 核心修复：系统 TTS（文本转语音）服务。
+          TextToSpeech 构造时，框架会用 Intent("android.intent.action.TTS_SERVICE")
+          去查询并绑定系统 TTS 引擎（Google 文字转语音引擎 / 厂商引擎等）。
+          缺本条声明 → 查询不到引擎 → 绑定失败 → TextToSpeech.OnInitListener.onInit()
+          收到非 SUCCESS（通常为 ERROR）→ SpeechManager.initFailed = true
+          → speak() 在「if (initFailed) return」处静默返回 → 界面有按钮、点了不出声。
+          字符串即 android.speech.tts.TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE 的字面值。
+        -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+
+        <!--
+          ★ 语音识别服务（SpeechRecognizer）。
+          HoldToDictateViewModel 用 SpeechRecognizer.createSpeechRecognizer() 做「按住说话」，
+          框架内部需要按 android.speech.RecognitionService 查询识别服务。
+          缺本条声明会导致 createSpeechRecognizer 后 onError(SERVER_ERROR) / 无响应。
+        -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+
+        <!--
+          ★ AICore 私有包探测。
+          runtime/aicore/AICoreModelHelper.kt 用
+          context.packageManager.getPackageInfo("com.google.android.aicore", 0)
+          判断设备上是否可用 Gemini Nano / AICore 后端。
+          该方法在 Android 11+ 同样受包可见性限制：未声明时直接抛
+          NameNotFoundException，被 catch 后误判为「AICore 未安装」，
+          导致 AICore 加速路径被静默关闭。
+        -->
+        <package android:name="com.google.android.aicore" />
+
+        <!--
+          ★ 系统 TTS 设置页入口。
+          VoiceSettingsDialog 在系统 TTS 不可用时，会用
+          Intent("com.android.settings.TTS_SETTINGS") 引导用户去开启语音服务，
+          需声明才能让设置 App 对本应用可见。
+        -->
+        <intent>
+            <action android:name="com.android.settings.TTS_SETTINGS" />
+        </intent>
+
+        <!--
+          ★ 浏览器 / 网页跳转（ACTION_VIEW + http/https）。
+          MainActivity（两处外部链接）、TinyGardenScreen、NotificationReceiver 均用
+          ACTION_VIEW 打开 https 链接。Android 11+ 下若不声明，
+          resolveActivity/隐式跳转可能拿不到目标 → 点击无反应。
+        -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+
+        <!-- ★ 地图跳转：MobileActionsViewModel 用 "geo:0,0?q=..." 打开地图。 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+
+        <!--
+          ★ 分享面板（ACTION_SEND）。
+          FileManagerRepository（分享文件）、Utils.kt（分享图片）、
+          IntentHandler（系统分享目标）都使用 ACTION_SEND + createChooser。
+          Android 11+ 规定此处 mimeType 只能用 "*/*" 通配，不能用 "image/*"。
+        -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+
+        <!-- ★ 邮件：IntentHandler.kt 用 ACTION_SENDTO + mailto: -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+
+        <!--
+          ★ SAF（存储访问框架）文件选择 / 保存 / 目录树选择。
+          - GlobalModelManager.kt 用 ACTION_OPEN_DOCUMENT 导入模型；
+          - VoiceSettings.kt 用 OpenDocumentTree（ACTION_OPEN_DOCUMENT_TREE）导入语音包目录。
+          系统 DocumentsUI 选择器理论上由系统代劳、不受过滤影响，但部分定制 ROM /
+          第三方 DocumentsProvider 会走 PackageManager 解析，这里显式声明更稳妥；
+          <queries> 只做「正向声明可见性」，不申请权限，声明多余的 intent 无副作用。
+        -->
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.CREATE_DOCUMENT" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
+
+    </queries>
+
+    <application
+        android:name="${applicationName}"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="${appIcon}"
+        android:label="@string/app_name"
+        android:roundIcon="${appIcon}"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Gallery"
+        tools:targetApi="31">
+        <uses-native-library android:name="libedgetpu_util.so" android:required="false" />
+        <uses-native-library android:name="libedgetpu_tachyon.google.so" android:required="false" />
+        <uses-native-library android:name="libedgetpu_client.google.so" android:required="false" />
+        <!--
+          android:configChanges="uiMode" tells the system don't destroy and
+          recreate the activity when UI mode changes (e.g. setting dark mode).
+          Instead, just recompose the view.
+         -->
+        <activity
+            android:name="com.encourage.app.MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Gallery.SplashScreen"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="uiMode"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity">
+            <!-- This is for putting the app into launcher -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- This is for deep linking -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="com.encourage.app" />
+            </intent-filter>
+        </activity>
+
+        <!-- Set themes for activities that are used for viewing open source licenses -->
+        <!-- OSS Licenses activities disabled with plugin
+        <activity
+            android:name="com.google.android.gms.oss.licenses.OssLicensesMenuActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Gallery.OssLicenses" />
+        <activity
+            android:name="com.google.android.gms.oss.licenses.OssLicensesActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Gallery.OssLicenses" />
+        -->
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false"
+            tools:node="merge">
+        </service>
+
+        <!-- Encourage: 已移除 Firebase AppMeasurement 与 FCM 推送（去谷歌化） -->
+
+        <receiver
+            android:name="com.encourage.app.notifications.NotificationReceiver"
+            android:exported="false" />
+
+        <!-- Encourage: 定时任务闹钟接收器（M3 / 需求 E1 E2），仅应用内广播 -->
+        <receiver
+            android:name="com.encourage.app.data.tasks.TaskAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name="com.encourage.app.notifications.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <uses-native-library android:name="libvndksupport.so" android:required="false"/>
+        <uses-native-library android:name="libOpenCL.so" android:required="false"/>
+        <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+        <uses-native-library android:name="libedgetpu_litert.so" android:required="false" />
+        <uses-native-library android:name="libedgetpu_util.so" android:required="false"/>
+        <uses-native-library android:name="libedgetpu_client.google.so" android:required="false"/>
+    </application>
+
+</manifest>
