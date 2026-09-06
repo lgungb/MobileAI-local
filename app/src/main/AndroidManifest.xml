@@ -217,6 +217,14 @@
             </intent-filter>
         </activity>
 
+        <!-- 全局崩溃显示页：应用崩溃时显示完整堆栈，方便用户截图反馈 -->
+        <activity
+            android:name="com.encourage.app.CrashDisplayActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Gallery"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
+
         <!-- Set themes for activities that are used for viewing open source licenses -->
         <!-- OSS Licenses activities disabled with plugin
         <activity

@@ -40,14 +40,26 @@ class GalleryApplication : Application() {
   override fun onCreate() {
     super.onCreate()
 
-    // 设置全局未捕获异常处理器，捕获 Java 层崩溃并记录到 DebugLog
+    // 设置全局未捕获异常处理器：捕获 Java 层崩溃，记录日志后启动崩溃显示页，
+    // 不直接闪退，让用户能看到完整堆栈并截图反馈。
     val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-      DebugLog.fatal("UncaughtException", "线程: ${thread.name}\n${throwable.stackTraceToString().take(1000)}")
+      val errorInfo =
+        "线程: ${thread.name}\n" +
+          "异常: ${throwable.javaClass.name}: ${throwable.message}\n" +
+          throwable.stackTraceToString().take(8000)
+      DebugLog.fatal("UncaughtException", errorInfo)
       Log.e(TAG, "Uncaught exception in thread: ${thread.name}", throwable)
-      // 延迟 1 秒让日志写入，然后交给默认处理器处理崩溃
-      try { Thread.sleep(1000) } catch (_: InterruptedException) {}
-      defaultHandler?.uncaughtException(thread, throwable)
+      try {
+        CrashDisplayActivity.start(this@GalleryApplication, errorInfo)
+        // 延迟让 Activity 启动，然后杀死当前进程（避免状态混乱）
+        Thread.sleep(500)
+        android.os.Process.killProcess(android.os.Process.myPid())
+        Runtime.getRuntime().exit(10)
+      } catch (e: Throwable) {
+        // 如果崩溃显示页也启动失败，交给默认处理器
+        defaultHandler?.uncaughtException(thread, throwable)
+      }
     }
 
     DebugLog.i(TAG, "应用启动，版本: ${BuildConfig.VERSION_NAME}")

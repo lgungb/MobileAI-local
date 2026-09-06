@@ -115,7 +115,7 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONObject
 
@@ -291,17 +291,21 @@ fun AgentChatScreen(
       }
     },
     onResetSessionClickedOverride = { task, _, initialMessages, clearHistory, onDone ->
-      resetSessionWithCurrentSkillsAndMcps(
-        viewModel,
-        modelManagerViewModel,
-        skillManagerViewModel,
-        task,
-        curSystemPrompt,
-        agentTools,
-        onDone = { onDone() },
-        initialMessages = initialMessages,
-        clearHistory = clearHistory,
-      )
+      // 【防卡死】resetSessionWithCurrentSkillsAndMcps 是 suspend 函数，
+      // 必须在协程中调用，绝不阻塞主线程。
+      scope.launch {
+        resetSessionWithCurrentSkillsAndMcps(
+          viewModel,
+          modelManagerViewModel,
+          skillManagerViewModel,
+          task,
+          curSystemPrompt,
+          agentTools,
+          onDone = { onDone() },
+          initialMessages = initialMessages,
+          clearHistory = clearHistory,
+        )
+      }
     },
     onSkillClicked = { showSkillManagerBottomSheet = true },
     onMcpClicked = { showMcpManagerBottomSheet = true },
@@ -672,14 +676,17 @@ fun AgentChatScreen(
         // Reset session when selected skills changed.
         if (selectedSkillsChanged) {
           Log.d(TAG, "Selected skill changed. Resetting conversation.")
-          resetSessionWithCurrentSkillsAndMcps(
-            viewModel,
-            modelManagerViewModel,
-            skillManagerViewModel,
-            task,
-            curSystemPrompt,
-            agentTools,
-          )
+          // 【防卡死】suspend 函数必须在协程中调用。
+          scope.launch {
+            resetSessionWithCurrentSkillsAndMcps(
+              viewModel,
+              modelManagerViewModel,
+              skillManagerViewModel,
+              task,
+              curSystemPrompt,
+              agentTools,
+            )
+          }
         }
       },
     )
@@ -692,14 +699,17 @@ fun AgentChatScreen(
         showMcpManagerBottomSheet = false
         if (selectMcpsAndToolsChanged) {
           Log.d(TAG, "Selected MCPs or tools changed. Resetting conversation.")
-          resetSessionWithCurrentSkillsAndMcps(
-            viewModel,
-            modelManagerViewModel,
-            skillManagerViewModel,
-            task,
-            curSystemPrompt,
-            agentTools,
-          )
+          // 【防卡死】suspend 函数必须在协程中调用。
+          scope.launch {
+            resetSessionWithCurrentSkillsAndMcps(
+              viewModel,
+              modelManagerViewModel,
+              skillManagerViewModel,
+              task,
+              curSystemPrompt,
+              agentTools,
+            )
+          }
         }
       },
     )
@@ -775,7 +785,14 @@ private fun updateProgressPanel(viewModel: LlmChatViewModel, model: Model, agent
   }
 }
 
-private fun resetSessionWithCurrentSkillsAndMcps(
+/**
+ * 用当前选中的 Skills 和 MCPs 重置会话。
+ *
+ * 【防卡死修复】原实现用 runBlocking(Dispatchers.Default) 在主线程调用 suspend 函数
+ * getAvailableSkills()，生成文本时CPU被LLM占满，这个调用会阻塞主线程数秒→ANR卡死。
+ * 改为 suspend 函数，调用方必须在协程中调用，绝不阻塞主线程。
+ */
+private suspend fun resetSessionWithCurrentSkillsAndMcps(
   viewModel: LlmChatViewModel,
   modelManagerViewModel: ModelManagerViewModel,
   skillManagerViewModel: SkillManagerViewModel,
@@ -791,8 +808,9 @@ private fun resetSessionWithCurrentSkillsAndMcps(
   val toolsPrompt = agentTools.mcpManagerViewModel.getToolsPrompt()
   val actualSystemPrompt = getEffectiveBaseSystemPrompt(curSystemPrompt, toolsPrompt.isNotEmpty())
 
+  // suspend 函数直接调用，不再用 runBlocking 阻塞主线程。
   val selectedSkills =
-    runBlocking(Dispatchers.Default) { skillManagerViewModel.skillManager.getAvailableSkills() }
+    withContext(Dispatchers.Default) { skillManagerViewModel.skillManager.getAvailableSkills() }
   val finalSystemPrompt =
     PromptExpander()
       .formatSystemInstructions(

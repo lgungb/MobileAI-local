@@ -321,10 +321,10 @@ class OfflineTtsEngine(
           if (File(dir, "dict").exists()) "$base/dict" else "",
       )
     // 【低配置手机保护】根据CPU核心数动态决定推理线程数：
-    // 4核及以下用1线程（避免多核同时跑满导致发热卡顿），
-    // 4核以上用2线程（兼顾速度）。绝不使用超过2线程，防止低端机过热。
+    // 4核及以下用2线程（兼顾速度与发热），
+    // 4核以上用4线程（速度优先）。绝不超过4线程，防止低端机过热。
     val cpuCores = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
-    val numThreads = if (cpuCores <= 4) 1 else 2
+    val numThreads = if (cpuCores <= 4) 2 else 4
     Log.i(TAG, "TTS threads=$numThreads (cpuCores=$cpuCores)")
     val modelConfig =
       OfflineTtsModelConfig(
