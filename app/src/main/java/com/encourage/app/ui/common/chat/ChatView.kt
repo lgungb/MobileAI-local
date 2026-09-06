@@ -632,38 +632,6 @@ fun ChatView(
               if (generationStats != null) {
                 GenerationStatsBar(stats = generationStats)
               }
-              // 【N6 统一入口】能力选择器：在对话页内快速切换到其他能力（复用当前模型）。
-              // 仅当外部传入 onNavigateToTask 回调时显示（如 AI 对话主入口）。
-              if (onNavigateToTask != null) {
-                val allTasks = modelManagerUiState.tasks
-                val capabilityTasks =
-                  remember(allTasks) {
-                    listOfNotNull(
-                      allTasks.find { it.id == BuiltInTaskId.LLM_CHAT },
-                      allTasks.find { it.id == BuiltInTaskId.LLM_ASK_IMAGE },
-                      allTasks.find { it.id == BuiltInTaskId.LLM_ASK_AUDIO },
-                      allTasks.find { it.id == BuiltInTaskId.LLM_PROMPT_LAB },
-                      allTasks.find { it.id == BuiltInTaskId.LLM_AGENT_CHAT },
-                    )
-                  }
-                if (capabilityTasks.size > 1) {
-                  Row(
-                    modifier =
-                      Modifier.fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                  ) {
-                    for (capTask in capabilityTasks) {
-                      FilterChip(
-                        selected = capTask.id == task.id,
-                        onClick = { onNavigateToTask(capTask) },
-                        label = { Text(capTask.label, maxLines = 1) },
-                      )
-                    }
-                  }
-                }
-              }
               AnimatedContent(
                 targetState = curModelDownloadStatus?.status == ModelDownloadStatusType.SUCCEEDED
               ) { targetState ->
@@ -679,6 +647,7 @@ fun ChatView(
                       skillCount = skillCount,
                       mcpCount = mcpCount,
                       navigateUp = navigateUp,
+                      onNavigateToTask = onNavigateToTask,
                       onSendMessage = { model, messages -> onSendMessage(model, messages) },
                       onRunAgainClicked = onRunAgainClicked,
                       onBenchmarkClicked = onBenchmarkClicked,

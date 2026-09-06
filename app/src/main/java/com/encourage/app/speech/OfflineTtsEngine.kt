@@ -331,11 +331,20 @@ class OfflineTtsEngine(
       listOf("phone.fst", "date.fst", "number.fst")
         .filter { File(dir, it).exists() } // 【N2】容忍缺失的 .fst 文件
         .joinToString(",") { "$base/$it" } // 数字/日期/标点规范
-    return OfflineTtsConfig(
-      model = modelConfig,
-      ruleFsts = ruleFsts,
-      maxNumSentences = 1,
-    )
+    // 【防闪退】ruleFsts 为空字符串时 sherpa-onnx native 层可能崩溃，
+    // 此时不传该参数，使用库默认值。
+    return if (ruleFsts.isNotEmpty()) {
+      OfflineTtsConfig(
+        model = modelConfig,
+        ruleFsts = ruleFsts,
+        maxNumSentences = 1,
+      )
+    } else {
+      OfflineTtsConfig(
+        model = modelConfig,
+        maxNumSentences = 1,
+      )
+    }
   }
 
   /**
@@ -371,7 +380,10 @@ class OfflineTtsEngine(
       fallback()
       return false
     }
-    stopRequested = false
+    // 先请求停止旧任务（让旧播放循环检测到 stopRequested 后退出），
+    // 再 cancel 旧协程。新协程拿到 playMutex 后才重置 stopRequested=false，
+    // 确保旧任务已完全停止，避免旧循环因标志被提前重置而继续运行。
+    stopRequested = true
     playbackJob?.cancel()
     playbackJob =
       engineScope.launch {
@@ -382,6 +394,8 @@ class OfflineTtsEngine(
             withContext(Dispatchers.Main) { fallback() }
             return@launch
           }
+          // 拿到锁后再重置停止标志，此时旧任务已退出。
+          stopRequested = false
           try {
             // ensureReady 内部的 native 构造现在跑在后台线程，安全且不阻塞主线程。
             if (!ensureReady()) {
@@ -486,8 +500,25 @@ class OfflineTtsEngine(
       }
       isSpeaking = true
       track.play()
-      // 播放期间循环等待，直到播完或被 stop 打断。
-      while (track.playState == AudioTrack.PLAYSTATE_PLAYING && !stopRequested) {
+      // 【防卡死】用 playbackHeadPosition 检测播放完成，不依赖 playState。
+      // 某些设备 MODE_STATIC 播完后 playState 仍为 PLAYSTATE_PLAYING，
+      // 导致循环永久卡住 → playMutex 被持有 → 后续试听全部无反应。
+      // 单声道：帧数 = 采样数。添加超时保护（音频时长 + 5秒）。
+      val totalFrames = audio.samples.size
+      val startTime = System.currentTimeMillis()
+      val timeoutMs = (totalFrames * 1000L / sampleRate.coerceAtLeast(1)) + 5000L
+      while (!stopRequested && !released) {
+        val position =
+          try {
+            track.playbackHeadPosition
+          } catch (_: Throwable) {
+            break
+          }
+        if (position >= totalFrames) break
+        if (System.currentTimeMillis() - startTime > timeoutMs) {
+          Log.w(TAG, "play timeout: pos=$position/$totalFrames")
+          break
+        }
         Thread.sleep(20)
       }
     } catch (e: Throwable) {
@@ -499,23 +530,34 @@ class OfflineTtsEngine(
     }
   }
 
-  /** 停止当前播放（并请求中止尚未完成的合成）。 */
+  /**
+   * 停止当前播放（并请求中止尚未完成的合成）。
+   *
+   * 【防崩溃】只设置 stopRequested 标志并 cancel 协程，不直接操作 AudioTrack。
+   * AudioTrack 的释放由 play() 的 finally 块负责，避免 stop() 与 play() 在不同
+   * 线程并发操作同一 AudioTrack（pause/flush/release vs play/write）导致 native 崩溃。
+   */
   fun stop() {
     stopRequested = true
     playbackJob?.cancel()
-    stopAudioTrack()
     isSpeaking = false
   }
 
   private fun stopAudioTrack() {
+    val track = audioTrack
+    audioTrack = null
     runCatching {
-      audioTrack?.let {
-        if (it.playState == AudioTrack.PLAYSTATE_PLAYING) it.pause()
-        it.flush()
+      track?.let {
+        if (it.state == AudioTrack.STATE_INITIALIZED) {
+          if (it.playState == AudioTrack.PLAYSTATE_PLAYING) {
+            it.pause()
+          }
+          it.stop()
+          it.flush()
+        }
         it.release()
       }
     }
-    audioTrack = null
   }
 
   /**
