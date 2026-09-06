@@ -18,6 +18,7 @@ package com.encourage.app.customtasks.common
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.encourage.app.data.Task
 import com.encourage.app.ui.modelmanager.ModelManagerViewModel
 
 /**
@@ -46,4 +47,7 @@ data class CustomTaskDataForBuiltinTask(
   val onNavUp: () -> Unit,
   // The initial query to be sent to the model when the screen is first loaded.
   val initialQuery: String? = null,
+  // 【N6 统一入口】从当前对话页导航到另一个任务的对话页（复用当前选中的模型）。
+  // 用于能力选择器 Chip 的点击跳转。
+  val onNavigateToTask: (Task) -> Unit = {},
 )

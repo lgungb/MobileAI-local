@@ -86,6 +86,7 @@ fun LlmChatScreen(
   skillCount: Int = 0,
   mcpCount: Int = 0,
   mcpToolsCount: Int = 0,
+  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   ChatViewWrapper(
     viewModel = viewModel,
@@ -112,6 +113,7 @@ fun LlmChatScreen(
     showImagePicker = showImagePicker,
     showAudioPicker = showAudioPicker,
     getActiveSkills = getActiveSkills,
+    onNavigateToTask = onNavigateToTask,
   )
 }
 
@@ -124,6 +126,7 @@ fun LlmAskImageScreen(
   allowEditingSystemPrompt: Boolean = false,
   curSystemPrompt: String = "",
   onSystemPromptChanged: (String) -> Unit = {},
+  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   ChatViewWrapper(
     viewModel = viewModel,
@@ -136,6 +139,7 @@ fun LlmAskImageScreen(
     onSystemPromptChanged = onSystemPromptChanged,
     showImagePicker = true,
     showAudioPicker = false,
+    onNavigateToTask = onNavigateToTask,
     emptyStateComposable = { model ->
       Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -172,6 +176,7 @@ fun LlmAskAudioScreen(
   allowEditingSystemPrompt: Boolean = false,
   curSystemPrompt: String = "",
   onSystemPromptChanged: (String) -> Unit = {},
+  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   ChatViewWrapper(
     viewModel = viewModel,
@@ -184,6 +189,7 @@ fun LlmAskAudioScreen(
     onSystemPromptChanged = onSystemPromptChanged,
     showImagePicker = false,
     showAudioPicker = true,
+    onNavigateToTask = onNavigateToTask,
     emptyStateComposable = {
       Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -232,6 +238,8 @@ fun ChatViewWrapper(
   skillCount: Int = 0,
   mcpCount: Int = 0,
   mcpToolsCount: Int = 0,
+  /** 【N6 统一入口】能力选择器导航回调，透传给 ChatView。 */
+  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   val context = LocalContext.current
   val task = modelManagerViewModel.getTaskById(id = taskId)!!
@@ -373,5 +381,6 @@ fun ChatViewWrapper(
     inferenceSource = inferenceSource,
     onInferenceSourceChange = { viewModel.setInferenceSource(it) },
     generationStats = generationStats,
+    onNavigateToTask = onNavigateToTask,
   )
 }

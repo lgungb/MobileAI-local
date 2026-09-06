@@ -194,16 +194,17 @@ fun ChatPanel(
   val voiceSettings by voiceSettingsViewModel.settings.collectAsState()
   // 【N1】离线引擎接入对话：仅当语音包已就绪且用户选择了离线引擎时才创建，
   // 否则不实例化，避免白占内存。语音包下载/导入完成后（packState→Ready）自动重建引擎。
+  // 【Bug 修复】同 VoiceSettingsDialog：旧实现 remember(key)+DisposableEffect(key)
+  // 的 onDispose 释放的是新引擎而非旧引擎，导致 native use-after-free 闪退。
+  // 改用 DisposableEffect 统一管理创建/释放，闭包捕获局部变量 engine。
   val voicePackInstalled = voiceSettingsViewModel.isDefaultPackInstalled()
   val contextForTts = LocalContext.current
-  var offlineTtsEngine by
-    remember(voicePackInstalled) {
-      mutableStateOf(if (voicePackInstalled) OfflineTtsEngine(contextForTts) else null)
-    }
+  var offlineTtsEngine by remember { mutableStateOf<OfflineTtsEngine?>(null) }
   DisposableEffect(voicePackInstalled) {
+    val engine = if (voicePackInstalled) OfflineTtsEngine(contextForTts) else null
+    offlineTtsEngine = engine
     onDispose {
-      offlineTtsEngine?.release()
-      offlineTtsEngine = null
+      engine?.release()
     }
   }
   val speechManager =

@@ -369,11 +369,16 @@ class SpeechManager(
     isSpeaking = false
   }
 
-  /** 释放引擎资源，必须与创建成对调用。 */
+  /**
+   * 释放引擎资源，必须与创建成对调用。
+   *
+   * 【Bug 修复】offlineTtsEngine 是从外部传入的，其生命周期由创建方（如
+   * VoiceSettingsDialog）管理。此处只 stop() 停止播放，绝不 release()，
+   * 否则会与外部的 release() 造成双重释放 → native free 已释放对象 → SIGSEGV 闪退。
+   */
   fun shutdown() {
     Log.d(TAG, "shutdown() called")
     stop()
-    offlineTtsEngine?.release()
     tts?.shutdown()
     tts = null
     ready = false

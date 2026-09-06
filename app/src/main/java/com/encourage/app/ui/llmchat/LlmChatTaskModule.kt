@@ -132,6 +132,7 @@ constructor(
       curSystemPrompt = uiSystemPrompt,
       showImagePicker = true,
       showAudioPicker = true,
+      onNavigateToTask = myData.onNavigateToTask,
       onSystemPromptChanged = { newPrompt ->
         val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
         viewModel.applySystemPromptChange(
@@ -271,6 +272,7 @@ constructor(
       viewModel = viewModel,
       allowEditingSystemPrompt = true,
       curSystemPrompt = uiSystemPrompt,
+      onNavigateToTask = myData.onNavigateToTask,
       onSystemPromptChanged = { newPrompt ->
         val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
         viewModel.applySystemPromptChange(
@@ -364,6 +366,7 @@ constructor(
       viewModel = viewModel,
       allowEditingSystemPrompt = true,
       curSystemPrompt = uiSystemPrompt,
+      onNavigateToTask = myData.onNavigateToTask,
       onSystemPromptChanged = { newPrompt ->
         val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
         viewModel.applySystemPromptChange(

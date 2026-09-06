@@ -55,6 +55,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 private const val TAG = "AGOfflineTts"
@@ -206,6 +208,16 @@ class OfflineTtsEngine(
 ) {
   private val engineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
+  /**
+   * 播放/合成互斥锁：保证 release() 释放 native 对象前，当前播放/合成已完全结束，
+   * 杜绝 native use-after-free 导致的 SIGSEGV 闪退。
+   * ensureReady / doSpeakInternal / play 都在锁内执行 native 调用。
+   */
+  private val playMutex = Mutex()
+
+  /** 引擎已被释放：释放后所有 native 调用直接拒绝，避免操作已 free 的对象。 */
+  @Volatile private var released = false
+
   private var tts: OfflineTts? = null
   private var audioTrack: AudioTrack? = null
 
@@ -260,6 +272,7 @@ class OfflineTtsEngine(
    */
   @Synchronized
   fun ensureReady(): Boolean {
+    if (released) return false
     if (isReady && tts != null) return true
     // 防御：native 初始化绝不允许在主线程执行（可能 ANR 甚至 native crash）。
     if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -353,22 +366,40 @@ class OfflineTtsEngine(
   ): Boolean {
     val content = text.trim()
     if (content.isEmpty()) return false
+    if (released) {
+      Log.w(TAG, "speakWithFallback called after release, fallback")
+      fallback()
+      return false
+    }
     stopRequested = false
     playbackJob?.cancel()
     playbackJob =
       engineScope.launch {
-        try {
-          // ensureReady 内部的 native 构造现在跑在后台线程，安全且不阻塞主线程。
-          if (!ensureReady()) {
-            Log.w(TAG, "offline engine not ready (${lastError}), fallback to system TTS")
-            // 回退逻辑切回主线程执行，避免 UI 线程安全问题。
-            runCatching { withContext(Dispatchers.Main) { fallback() } }
+        // 整个 native 流程（初始化 + 合成 + 播放）在互斥锁内，
+        // 保证 release() 必须等当前任务结束才能 free native 对象。
+        playMutex.withLock {
+          if (released) {
+            withContext(Dispatchers.Main) { fallback() }
             return@launch
           }
-          doSpeakInternal(content, speed)
-        } finally {
-          isSpeaking = false
-          onDone?.let { runCatching { it() } }
+          try {
+            // ensureReady 内部的 native 构造现在跑在后台线程，安全且不阻塞主线程。
+            if (!ensureReady()) {
+              Log.w(TAG, "offline engine not ready (${lastError}), fallback to system TTS")
+              // 回退逻辑切回主线程执行，避免 UI 线程安全问题。
+              runCatching { withContext(Dispatchers.Main) { fallback() } }
+              return@launch
+            }
+            doSpeakInternal(content, speed)
+          } finally {
+            isSpeaking = false
+            onDone?.let { runCatching { withContext(Dispatchers.Main) { it() } } }
+            // 【延迟释放】如果 release() 在播放期间被调用（tryLock 失败），
+            // 在这里 native 调用已全部结束，安全释放 native 对象。
+            if (released) {
+              releaseEngineLocked()
+            }
+          }
         }
       }
     return true
@@ -487,11 +518,29 @@ class OfflineTtsEngine(
     audioTrack = null
   }
 
-  /** 释放引擎，必须与创建成对调用。 */
+  /**
+   * 释放引擎，必须与创建成对调用。
+   *
+   * 【防闪退加固】设置 released 标志后，先 stop() 中止当前播放，再尝试获取 playMutex。
+   * - 拿到锁：说明当前没有 native 调用在执行，立即 free native 对象；
+   * - 拿不到锁：说明正在播放/合成，不强制 free，由 playMutex.withLock 的 finally 块
+   *   检查 released 标志后释放，杜绝 use-after-free 导致的 SIGSEGV。
+   * engineScope 被 cancel 后，正在执行的 native 调用（generate）不可中断，但
+   * stopRequested=true 会让播放循环立即退出，native 对象在 finally 中安全释放。
+   */
   fun release() {
+    if (released) return
+    released = true
     stop()
     engineScope.coroutineContext[Job]?.cancel()
-    releaseEngineLocked()
+    // 无播放任务时立即释放；有播放任务时由 doSpeakInternal 的 finally 延迟释放。
+    if (playMutex.tryLock()) {
+      try {
+        releaseEngineLocked()
+      } finally {
+        playMutex.unlock()
+      }
+    }
   }
 
   @Synchronized

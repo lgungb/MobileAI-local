@@ -129,16 +129,20 @@ fun VoiceSettingsDialog(
   val packState by viewModel.packState.collectAsState()
   // 语音包是否已就绪（model.onnx 存在）。
   val packInstalled = viewModel.isDefaultPackInstalled()
-  // 离线引擎：语音包就绪时才实例化；用 DisposableEffect 绑定生命周期，
-  // 避免 packInstalled 变化或对话框关闭时旧引擎泄漏。
   val context = LocalContext.current
-  var offlineTtsEngine by remember(packInstalled) {
-    mutableStateOf(if (packInstalled) OfflineTtsEngine(context) else null)
-  }
+  // 【Bug 修复】离线引擎生命周期统一由 DisposableEffect 管理：
+  // 旧实现用 remember(packInstalled) + DisposableEffect(packInstalled)，onDispose 闭包
+  // 捕获的是变量引用而非值——packInstalled 变化时 remember 先重建新引擎，onDispose
+  // 再执行时释放的却是新引擎，导致旧引擎泄漏、新引擎被误释放，后续 speak 操作
+  // 已释放对象 → native SIGSEGV 闪退。
+  // 新方案：DisposableEffect 内创建引擎并赋值给外部状态，onDispose 释放闭包捕获的
+  // 局部变量 engine（即本次 Effect 创建的那个引擎），保证创建与释放一一对应。
+  var offlineTtsEngine by remember { mutableStateOf<OfflineTtsEngine?>(null) }
   DisposableEffect(packInstalled) {
+    val engine = if (packInstalled) OfflineTtsEngine(context) else null
+    offlineTtsEngine = engine
     onDispose {
-      offlineTtsEngine?.release()
-      offlineTtsEngine = null
+      engine?.release()
     }
   }
   val speechManager =

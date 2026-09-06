@@ -329,6 +329,12 @@ fun GalleryNavHost(
                     navController.navigateUp()
                   },
                   initialQuery = queryParam,
+                  // 【N6 统一入口】能力选择器点击后导航到对应任务的对话页，复用当前模型。
+                  onNavigateToTask = { targetTask ->
+                    navController.navigate("$ROUTE_MODEL/${targetTask.id}/$modelName") {
+                      popUpTo(ROUTE_HOMESCREEN) { inclusive = false }
+                    }
+                  },
                 )
             )
           } else {

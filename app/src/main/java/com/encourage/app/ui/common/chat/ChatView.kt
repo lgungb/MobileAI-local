@@ -302,6 +302,11 @@ fun ChatView(
   inferenceSource: InferenceSource = InferenceSource.AUTO,
   onInferenceSourceChange: (InferenceSource) -> Unit = {},
   generationStats: GenerationStats? = null,
+  /**
+   * 【N6 统一入口】能力选择器回调：用户在对话页点击能力 Chip 时触发，
+   * 导航到对应任务的对话页（复用当前模型）。为空时不显示能力选择器。
+   */
+  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
@@ -626,6 +631,38 @@ fun ChatView(
               // 【M7】token 速度统计条：最近一次生成完成后的性能信息。
               if (generationStats != null) {
                 GenerationStatsBar(stats = generationStats)
+              }
+              // 【N6 统一入口】能力选择器：在对话页内快速切换到其他能力（复用当前模型）。
+              // 仅当外部传入 onNavigateToTask 回调时显示（如 AI 对话主入口）。
+              if (onNavigateToTask != null) {
+                val allTasks = modelManagerUiState.tasks
+                val capabilityTasks =
+                  remember(allTasks) {
+                    listOfNotNull(
+                      allTasks.find { it.id == BuiltInTaskId.LLM_CHAT },
+                      allTasks.find { it.id == BuiltInTaskId.LLM_ASK_IMAGE },
+                      allTasks.find { it.id == BuiltInTaskId.LLM_ASK_AUDIO },
+                      allTasks.find { it.id == BuiltInTaskId.LLM_PROMPT_LAB },
+                      allTasks.find { it.id == BuiltInTaskId.LLM_AGENT_CHAT },
+                    )
+                  }
+                if (capabilityTasks.size > 1) {
+                  Row(
+                    modifier =
+                      Modifier.fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                  ) {
+                    for (capTask in capabilityTasks) {
+                      FilterChip(
+                        selected = capTask.id == task.id,
+                        onClick = { onNavigateToTask(capTask) },
+                        label = { Text(capTask.label, maxLines = 1) },
+                      )
+                    }
+                  }
+                }
               }
               AnimatedContent(
                 targetState = curModelDownloadStatus?.status == ModelDownloadStatusType.SUCCEEDED

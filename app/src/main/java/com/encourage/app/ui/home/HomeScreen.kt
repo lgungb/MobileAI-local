@@ -63,6 +63,8 @@ import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Settings
@@ -117,6 +119,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -540,6 +543,108 @@ fun HomeScreen(
                     enableAnimation = enableAnimation,
                     onClick = { showHelpCenter = true },
                   )
+                }
+
+                // 【N6 统一入口】主入口 + 快捷直达：把分散的能力收敛为"一个主入口 + 3个高频快捷"。
+                // 主入口默认进入 AI 对话；快捷直达保留老用户肌肉记忆（识图/听写/快捷任务）。
+                // 全部能力仍可通过下方分类 Tab 浏览。
+                val chatTask = tasks.find { it.id == BuiltInTaskId.LLM_CHAT }
+                val askImageTask = tasks.find { it.id == BuiltInTaskId.LLM_ASK_IMAGE }
+                val askAudioTask = tasks.find { it.id == BuiltInTaskId.LLM_ASK_AUDIO }
+                val promptLabTask = tasks.find { it.id == BuiltInTaskId.LLM_PROMPT_LAB }
+                Column(
+                  modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 8.dp),
+                  verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                  // 主入口：开始对话（唯一视觉焦点）。
+                  if (chatTask != null) {
+                    Card(
+                      onClick = { navigateToTaskScreen(chatTask) },
+                      modifier = Modifier.fillMaxWidth(),
+                      colors =
+                        CardDefaults.cardColors(
+                          containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
+                    ) {
+                      Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                      ) {
+                        Icon(
+                          Icons.Rounded.Chat,
+                          contentDescription = null,
+                          modifier = Modifier.size(30.dp),
+                          tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                          Text(
+                            chatTask.label,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                          )
+                          if (chatTask.shortDescription.isNotBlank()) {
+                            Text(
+                              chatTask.shortDescription,
+                              style = MaterialTheme.typography.bodySmall,
+                              color =
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                            )
+                          }
+                        }
+                        Icon(
+                          Icons.Rounded.ChevronRight,
+                          contentDescription = null,
+                          tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                      }
+                    }
+                  }
+
+                  // 快捷直达：识图 / 听写 / 快捷任务（横向三等分）。
+                  val quickEntries =
+                    listOfNotNull(
+                      askImageTask?.let { it to Icons.Rounded.Image },
+                      askAudioTask?.let { it to Icons.Rounded.Mic },
+                      promptLabTask?.let { it to Icons.Rounded.Science },
+                    )
+                  if (quickEntries.isNotEmpty()) {
+                    Row(
+                      modifier = Modifier.fillMaxWidth(),
+                      horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                      for ((task, icon) in quickEntries) {
+                        Card(
+                          onClick = { navigateToTaskScreen(task) },
+                          modifier = Modifier.weight(1f),
+                          colors =
+                            CardDefaults.cardColors(
+                              containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                        ) {
+                          Column(
+                            modifier =
+                              Modifier.padding(vertical = 14.dp, horizontal = 4.dp).fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                          ) {
+                            Icon(
+                              icon,
+                              contentDescription = task.label,
+                              modifier = Modifier.size(26.dp),
+                              tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                              task.label,
+                              style = MaterialTheme.typography.labelMedium,
+                              textAlign = TextAlign.Center,
+                              maxLines = 1,
+                            )
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
 
                 // Tab header for categories.
