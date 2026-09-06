@@ -320,10 +320,16 @@ class OfflineTtsEngine(
           // 引擎退化为按字切分，仍可朗读中文，只是分词精度略降。
           if (File(dir, "dict").exists()) "$base/dict" else "",
       )
+    // 【低配置手机保护】根据CPU核心数动态决定推理线程数：
+    // 4核及以下用1线程（避免多核同时跑满导致发热卡顿），
+    // 4核以上用2线程（兼顾速度）。绝不使用超过2线程，防止低端机过热。
+    val cpuCores = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+    val numThreads = if (cpuCores <= 4) 1 else 2
+    Log.i(TAG, "TTS threads=$numThreads (cpuCores=$cpuCores)")
     val modelConfig =
       OfflineTtsModelConfig(
         vits = vits,
-        numThreads = 2,
+        numThreads = numThreads,
         debug = false,
         provider = "cpu",
       )
