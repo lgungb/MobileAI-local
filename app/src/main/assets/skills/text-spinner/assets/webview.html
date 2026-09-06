@@ -1,26 +1,12 @@
 <!--
-@license
-Copyright 2026 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================
+全屏3D头部追踪文字旋转
+注意：此技能依赖MediaPipe模型（storage.googleapis.com），国内网络可能无法加载。
 -->
-
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Full-Screen 3D Head Tracker</title>
+  <title>全屏3D头部追踪</title>
   <style>
     body, html {
       margin: 0; padding: 0;
@@ -53,16 +39,16 @@ limitations under the License.
 </head>
 <body>
 
-  <div class="status" id="status">Syncing Neural Engine...</div>
+  <div class="status" id="status">正在同步神经引擎...</div>
 
   <div id="container">
     <video id="webcam" autoplay playsinline></video>
     <canvas id="output_canvas"></canvas>
-    <div id="spinning-label">Label</div>
+    <div id="spinning-label">文字</div>
   </div>
 
   <script type="module">
-    // Using the .mjs bundle which is the current standard for MediaPipe Tasks
+    // 使用MediaPipe Tasks进行人脸追踪
     import {
       FaceLandmarker,
       FilesetResolver
@@ -77,11 +63,11 @@ limitations under the License.
     const statusDiv = document.getElementById("status");
 
     const urlParams = new URLSearchParams(window.location.search);
-    labelDiv.innerText = urlParams.get('label') || "3D TRACKER";
+    labelDiv.innerText = urlParams.get('label') || "3D追踪器";
 
     async function init() {
       try {
-        // Pointing to the WASM folder explicitly
+        // 明确指定WASM文件夹
         const filesetResolver = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
         );
@@ -108,7 +94,7 @@ limitations under the License.
         };
 
       } catch (err) {
-        statusDiv.innerText = "Init Error: " + err.message;
+        statusDiv.innerText = "初始化错误: " + err.message;
         console.error(err);
       }
     }
@@ -126,7 +112,7 @@ limitations under the License.
           const leftFace = landmarks[234];
           const rightFace = landmarks[454];
 
-          // 3D calculation
+          // 3D计算
           const screenX = (1 - topHead.x) * window.innerWidth;
           const screenY = topHead.y * window.innerHeight;
 

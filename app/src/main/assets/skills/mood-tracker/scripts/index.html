@@ -1,23 +1,8 @@
 <!--
-@license
-Copyright 2026 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================
+心情追踪器
 -->
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <body>
   <script>
     const STORAGE_KEY = 'mood_tracker_data';
@@ -43,19 +28,18 @@ limitations under the License.
         return toLocalISO(d);
       }
 
-      // Handle YYYY-MM-DD directly
+      // 直接处理 YYYY-MM-DD 格式
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         return dateStr;
       }
 
-      // Try general date parsing (handles "March 17", "March 18 2026", etc.)
+      // 尝试通用日期解析
       const parsed = new Date(dateStr);
       if (!isNaN(parsed.getTime())) {
-        // Javascript defaults to the current year if not specified
         return toLocalISO(parsed);
       }
 
-      // Fallback
+      // 回退
       return toLocalISO(now);
     }
 
@@ -80,7 +64,7 @@ limitations under the License.
         if (action === 'log_mood') {
           const score = parseInt(input.score);
           if (isNaN(score) || score < 1 || score > 10) {
-            throw new Error("Mood score must be a number between 1 and 10.");
+            throw new Error("心情分数必须是1到10之间的数字。");
           }
 
           allData[date] = {
@@ -89,41 +73,41 @@ limitations under the License.
             timestamp: new Date().toISOString()
           };
           saveData(allData);
-          resultMessage = `Logged mood of ${score}/10 for ${date}${input.comment ? ': "' + input.comment + '"' : ''}.`;
+          resultMessage = `已记录 ${date} 的心情为 ${score}/10${input.comment ? '："' + input.comment + '"' : ''}。`;
         } else if (action === 'get_mood') {
           const entry = allData[date];
           if (entry) {
-            resultMessage = `Your mood on ${date} was ${entry.score}/10${entry.comment ? ' (' + entry.comment + ')' : ''}.`;
+            resultMessage = `${date} 你的心情是 ${entry.score}/10${entry.comment ? '（' + entry.comment + '）' : ''}。`;
           } else {
-            resultMessage = `No mood entry found for ${date}.`;
+            resultMessage = `${date} 没有找到心情记录。`;
           }
         } else if (action === 'get_history') {
           const daysCount = parseInt(input.days) || 7;
           const history = [];
-          // Sort chronologically (oldest first) for better trend analysis
+          // 按时间排序（最旧在前）便于趋势分析
           const sortedDates = Object.keys(allData).sort().slice(-daysCount);
 
           sortedDates.forEach(d => {
             history.push({ date: d, ...allData[d] });
           });
 
-          resultMessage = `Here is your mood history (oldest first, retrieved on ${toLocalISO(new Date())}): \n` +
+          resultMessage = `以下是你的心情历史（最旧在前，查询于 ${toLocalISO(new Date())}）：\n` +
                           history.map(h => `- ${h.date}: ${h.score}/10 ${h.comment ? '(' + h.comment + ')' : ''}`).join('\n');
         } else if (action === 'delete_mood') {
           if (allData[date]) {
             delete allData[date];
             saveData(allData);
-            resultMessage = `Deleted mood entry for ${date}.`;
+            resultMessage = `已删除 ${date} 的心情记录。`;
           } else {
-            resultMessage = `No mood entry found to delete for ${date}.`;
+            resultMessage = `${date} 没有找到可删除的心情记录。`;
           }
         } else if (action === 'export_data') {
-          resultMessage = `Here is your raw mood data for backup (Copy and save this JSON): \n\n${JSON.stringify(allData, null, 2)}`;
+          resultMessage = `以下是你的原始心情数据备份（复制并保存此JSON）：\n\n${JSON.stringify(allData, null, 2)}`;
         } else if (action === 'wipe_data') {
           localStorage.removeItem(STORAGE_KEY);
-          resultMessage = "All your mood history has been deleted. You can now start fresh!";
+          resultMessage = "所有心情历史已删除。你现在可以重新开始！";
         } else {
-          throw new Error(`Unknown action: ${action}`);
+          throw new Error(`未知操作: ${action}`);
         }
 
         const response = {
@@ -142,7 +126,7 @@ limitations under the License.
 
       } catch (e) {
         console.error(e);
-        return JSON.stringify({ error: `Mood Tracker error: ${e.message}` });
+        return JSON.stringify({ error: `心情追踪器错误: ${e.message}` });
       }
     };
   </script>

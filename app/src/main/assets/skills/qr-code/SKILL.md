@@ -1,11 +1,11 @@
 ---
 name: qr-code
-description: Generates a QR code for the given url.
+description: 为给定URL生成二维码。
 ---
 
-# Instructions
+# 使用说明
 
-You MUST use the `run_js` tool with the following exact parameters:
+你必须使用 `run_js` 工具，传入以下精确参数：
 
-- data: A JSON string with the following fields:
-  - url: String - the url to create QR code for
+- data: JSON 字符串，包含以下字段：
+  - url: 字符串 - 要生成二维码的URL

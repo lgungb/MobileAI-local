@@ -212,6 +212,7 @@ constructor(
       navigateUp = myData.onNavUp,
       agentTools = agentTools,
       initialQuery = myData.initialQuery,
+      onNavigateToTask = myData.onNavigateToTask,
     )
   }
 }

@@ -1,16 +1,16 @@
 ---
 name: send-email
-description: Send an email.
+description: 发送电子邮件。
 ---
 
-# Send email
+# 发送邮件
 
-## Instructions
+## 使用说明
 
-Call the `run_intent` tool with the following exact parameters:
+调用 `run_intent` 工具，传入以下精确参数：
 
 - intent: send_email
-- parameters: A JSON string with the following fields:
-  - extra_email: the email address to send the email to. String.
-  - extra_subject: the subject of the email. String.
-  - extra_text: the body of the email. String.
+- parameters: JSON 字符串，包含以下字段：
+  - extra_email: 收件人邮箱地址。字符串。
+  - extra_subject: 邮件主题。字符串。
+  - extra_text: 邮件正文。字符串。

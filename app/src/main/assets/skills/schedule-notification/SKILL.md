@@ -1,29 +1,29 @@
 ---
 name: schedule-notification
-description: Schedule a notification for a specific date or repeating daily.
+description: 安排特定日期或每日重复的通知。
 ---
 
-# Schedule Notification
+# 安排通知
 
-## Instructions
+## 使用说明
 
-To schedule a notification, you must follow these exact steps:
-1. First, if the notification doesn't need to repeat daily, call the `run_intent` tool with `intent` as `get_current_date_and_time` and `parameters` as `{}` to get the user's local date and time. Then explicitly calculate the scheduling date and time in your response. Write out:
-- Today's exact date.
-- The target day or relative time requested by the user (e.g., "tomorrow", "this Friday").
-- The exact number of days you need to add to today's date.
-- The final calculated dates, ensuring you correctly roll over to the next month or year if the added days exceed the days in the current month.
-2. Call the `run_intent` tool with the following exact parameters:
+要安排通知，必须遵循以下精确步骤：
+1. 首先，如果通知不需要每日重复，调用 `run_intent` 工具，`intent` 设为 `get_current_date_and_time`，`parameters` 设为 `{}`，获取用户的本地日期和时间。然后在回复中明确计算安排的日期和时间。写出：
+- 今天的确切日期。
+- 用户请求的目标日期或相对时间（例如"明天"、"本周五"）。
+- 需要在今天日期上加上的确切天数。
+- 最终计算的日期，确保如果加上的天数超过当前月的天数，正确滚动到下一个月或年。
+2. 调用 `run_intent` 工具，传入以下精确参数：
 - intent: schedule_notification
-- parameters: A JSON string with the following fields:
-   - title: the title of the notification. String.
-   - message: the message content of the notification. String.
-   - hour: the hour of the day (0-23) for the notification. Integer.
-   - minute: the minute of the hour (0-59) for the notification. Integer.
-   - task_id: (optional) the task ID for the target page (e.g., "llm_agent_chat"). String.
-   - model_name: (optional) the model name for the target page (e.g., "Gemma-4-E4B-it"). String.
-   - deeplink: (optional) the full deeplink URI to open when the notification is tapped. String.
-   - year: (optional) the year for the notification. Integer.
-   - month: (optional) the month (1-12) for the notification. Integer.
-   - day: (optional) the day of the month (1-31) for the notification. Integer.
-   - repeat_daily: (optional) true if the notification should repeat daily at this time. Boolean.
+- parameters: JSON 字符串，包含以下字段：
+   - title: 通知标题。字符串。
+   - message: 通知消息内容。字符串。
+   - hour: 通知的小时（0-23）。整数。
+   - minute: 通知的分钟（0-59）。整数。
+   - task_id: （可选）目标页面的任务ID（例如"llm_agent_chat"）。字符串。
+   - model_name: （可选）目标页面的模型名称（例如"Gemma-4-E4B-it"）。字符串。
+   - deeplink: （可选）点击通知时打开的完整深链URI。字符串。
+   - year: （可选）通知的年份。整数。
+   - month: （可选）通知的月份（1-12）。整数。
+   - day: （可选）通知的日期（1-31）。整数。
+   - repeat_daily: （可选）如果通知应在此时间每日重复则为true。布尔值。

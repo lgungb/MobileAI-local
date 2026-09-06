@@ -1,18 +1,18 @@
 ---
 name: interactive-map
-description: Show an interactive map view for the given location.
+description: 显示指定地点的交互式地图（高德地图）。
 ---
 
-# Interactive map
+# 交互式地图
 
-## Examples
+## 示例
 
-- "Show [a place] on interactive map"
-- "Find [a place] on interactive map"
+- "在地图上显示[地点]"
+- "在交互式地图上查找[地点]"
 
-## Instructions
+## 使用说明
 
-Call the `run_js` tool with the following exact parameters:
+调用 `run_js` 工具，传入以下精确参数：
 
-- data: A JSON string with the following field
-  - location: The location to show on the map.
+- data: JSON 字符串，包含以下字段
+  - location: 要在地图上显示的地点。

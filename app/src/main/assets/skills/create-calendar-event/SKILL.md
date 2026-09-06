@@ -1,22 +1,23 @@
 ---
 name: create-calendar-event
-description: Create a calendar event.
+description: 创建日历事件。
 ---
 
-# Create calendar event
+# 创建日历事件
 
-## Instructions
-To schedule an event, you must follow these exact steps:
-1. First, call the `run_intent` tool with `intent` as `get_current_date_and_time` and `parameters` as `{}` to get the user's local date, time, and the current day of the week.
-2. Before creating the event, you must explicitly calculate the exact date in your response. Write out:
-    - Today's exact date and day of the week.
-    - The target day or relative time requested by the user (e.g., "tomorrow", "this Friday").
-    - The exact number of days you need to add to today's date.
-    - The final calculated dates, ensuring you correctly roll over to the next month or year if the added days exceed the days in the current month.
-3. Once you have calculated the correct dates, call the `run_intent` tool with the following exact parameters:
+## 使用说明
+
+要安排事件，必须遵循以下精确步骤：
+1. 首先，调用 `run_intent` 工具，`intent` 设为 `get_current_date_and_time`，`parameters` 设为 `{}`，获取用户的本地日期、时间和当前星期几。
+2. 创建事件前，必须在回复中明确计算确切日期。写出：
+    - 今天的确切日期和星期几。
+    - 用户请求的目标日期或相对时间（例如"明天"、"本周五"）。
+    - 需要在今天日期上加上的确切天数。
+    - 最终计算的日期，确保如果加上的天数超过当前月的天数，正确滚动到下一个月或年。
+3. 计算出正确日期后，调用 `run_intent` 工具，传入以下精确参数：
     - `intent`: create_calendar_event
-    - `parameters`: A JSON string with the following fields:
-        - `title`: the title of the event. String.
-        - `description`: the description of the event. String.
-        - `begin_time`: the start time of the event in YYYY-MM-DDTHH:MM:SS format. String.
-        - `end_time`: the end time of the event in YYYY-MM-DDTHH:MM:SS format. String.
+    - `parameters`: JSON 字符串，包含以下字段：
+        - `title`: 事件标题。字符串。
+        - `description`: 事件描述。字符串。
+        - `begin_time`: 事件开始时间，格式为 YYYY-MM-DDTHH:MM:SS。字符串。
+        - `end_time`: 事件结束时间，格式为 YYYY-MM-DDTHH:MM:SS。字符串。

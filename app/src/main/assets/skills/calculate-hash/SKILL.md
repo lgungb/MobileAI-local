@@ -1,21 +1,21 @@
 ---
 name: calculate-hash
-description: Calculate the hash of a given text.
+description: 计算给定文本的哈希值。
 ---
 
-# Calculate hash
+# 计算哈希
 
-This skill calculates the hash of a given text.
+本技能计算给定文本的哈希值。
 
-## Examples
+## 示例
 
-* "Calculate hash of..."
-* "What is the hash of..."
+* "计算...的哈希"
+* "...的哈希是什么"
 
-## Instructions
+## 使用说明
 
-Call the `run_js` tool with the following exact parameters:
+调用 `run_js` 工具，传入以下精确参数：
 
-- script name: `index.html`
-- data: A JSON string with the following field
-  - text: the text to calculate hash for
+- 脚本名: `index.html`
+- data: JSON 字符串，包含以下字段
+  - text: 要计算哈希的文本

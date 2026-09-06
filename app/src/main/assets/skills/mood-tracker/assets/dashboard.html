@@ -1,29 +1,18 @@
 <!--
-@license
-Copyright 2026 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================
+心情追踪器仪表盘
 -->
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mood Tracker Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>心情追踪仪表盘</title>
+  <!-- 使用系统字体替代Google Fonts（国内不可用） -->
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  </style>
+  <!-- 使用字节CDN替代jsdelivr -->
+  <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-10-M/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     :root {
       --bg-gradient: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
@@ -40,7 +29,7 @@ limitations under the License.
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Outfit', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     }
 
     body {
@@ -290,7 +279,6 @@ limitations under the License.
       color: var(--text-dim);
     }
 
-    /* Custom scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
     }
@@ -305,7 +293,6 @@ limitations under the License.
       background: var(--accent-secondary);
     }
 
-    /* Chart Styles */
     .chart-container {
       background: var(--glass-bg);
       backdrop-filter: blur(15px);
@@ -317,7 +304,7 @@ limitations under the License.
       box-shadow: var(--card-shadow);
       width: 100%;
       height: 250px;
-      display: none; /* Hidden until plot action is requested */
+      display: none;
     }
 
     .chart-title {
@@ -332,7 +319,7 @@ limitations under the License.
 <body>
   <div class="container">
     <header>
-      <h1>Mood Tracker</h1>
+      <h1>心情追踪</h1>
     </header>
 
     <div class="date-navigator">
@@ -348,32 +335,29 @@ limitations under the License.
     <div class="mood-card">
       <div class="mood-score-circle">
         <div class="score-value" id="current-score">-</div>
-        <div class="score-label">Score</div>
+        <div class="score-label">分数</div>
       </div>
-      <div class="mood-comment-text" id="current-comment">No notes for today.</div>
+      <div class="mood-comment-text" id="current-comment">今天没有备注。</div>
     </div>
 
-    <!-- Chart Section -->
     <div class="chart-container" id="chart-container">
-        <div class="chart-title">Mood Trend Chart</div>
+        <div class="chart-title">心情趋势图</div>
         <canvas id="moodChart"></canvas>
     </div>
 
     <div class="history-card">
       <div class="history-title">
         <svg fill="currentColor" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
-        Your Mood Journey
+        你的心情旅程
       </div>
       <ul class="history-list" id="history-list">
-        <!-- History items -->
       </ul>
     </div>
 
-    <!-- Raw Data Section -->
     <div style="margin-top: 30px; text-align: center;">
-        <button id="toggle-raw-btn" style="background: transparent; border: 1px solid var(--glass-border); color: var(--text-dim); padding: 8px 15px; border-radius: 10px; cursor: pointer; font-size: 0.8rem;">View Raw Data (Developer)</button>
+        <button id="toggle-raw-btn" style="background: transparent; border: 1px solid var(--glass-border); color: var(--text-dim); padding: 8px 15px; border-radius: 10px; cursor: pointer; font-size: 0.8rem;">查看原始数据（开发者）</button>
         <div id="raw-data-container" style="display: none; margin-top: 15px; text-align: left; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border); overflow-x: auto; position: relative;">
-            <button id="copy-raw-btn" style="position: absolute; top: 10px; right: 10px; background: var(--accent-primary); border: none; color: #1a1a2e; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.7rem; font-weight: 600;">Copy</button>
+            <button id="copy-raw-btn" style="position: absolute; top: 10px; right: 10px; background: var(--accent-primary); border: none; color: #1a1a2e; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.7rem; font-weight: 600;">复制</button>
             <pre id="raw-json" style="font-family: monospace; font-size: 0.75rem; color: #4ecca3;"></pre>
         </div>
     </div>
@@ -405,7 +389,7 @@ limitations under the License.
 
     function formatDateDisplay(date) {
       const options = { weekday: 'long', month: 'short', day: 'numeric' };
-      return date.toLocaleDateString('en-US', options);
+      return date.toLocaleDateString('zh-CN', options);
     }
 
     function loadData() {
@@ -420,40 +404,37 @@ limitations under the License.
 
       if (entry) {
         scoreEl.textContent = entry.score;
-        commentEl.textContent = entry.comment || 'Feeling Zen.';
+        commentEl.textContent = entry.comment || '感觉平静。';
 
-        // Color based on score
-        const hue = (entry.score -1) * 12; // 0 to 108 (red-ish to green-ish)
+        const hue = (entry.score -1) * 12;
         document.querySelector('.mood-score-circle').style.background = `radial-gradient(circle, hsl(${hue}, 70%, 60%), hsl(${hue + 20}, 70%, 50%))`;
       } else {
         scoreEl.textContent = '-';
-        commentEl.textContent = 'No entry for this date.';
+        commentEl.textContent = '这个日期没有记录。';
         document.querySelector('.mood-score-circle').style.background = 'rgba(255,255,255,0.1)';
       }
 
-      // Load last 5 history entries
       const historyList = document.getElementById('history-list');
       historyList.innerHTML = '';
 
       const sortedDates = Object.keys(allData).sort().reverse().slice(0, 5);
 
       if (sortedDates.length === 0) {
-        historyList.innerHTML = '<div class="empty-state">Your journey starts here. Log your first mood!</div>';
+        historyList.innerHTML = '<div class="empty-state">你的旅程从这里开始。记录你的第一个心情！</div>';
       } else {
         sortedDates.forEach(d => {
           const item = allData[d];
           const li = document.createElement('li');
           li.className = 'history-item';
 
-          // Format date for list e.g. "Mar 24"
           const dateObj = parseISODate(d);
-          const dateLabel = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const dateLabel = dateObj.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 
           li.innerHTML = `
             <div class="history-date">${dateLabel}</div>
             <div class="history-score-pill" style="background: hsl(${(item.score-1)*12}, 70%, 60%)">${item.score}</div>
-            <div class="history-comment">${item.comment || 'No notes.'}</div>
-            <button class="delete-btn" onclick="deleteEntry('${d}')" title="Delete entry">
+            <div class="history-comment">${item.comment || '无备注。'}</div>
+            <button class="delete-btn" onclick="deleteEntry('${d}')" title="删除记录">
                 <svg fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
             </button>
           `;
@@ -461,10 +442,8 @@ limitations under the License.
         });
       }
 
-      // Update Raw Data
       document.getElementById('raw-json').textContent = JSON.stringify(allData, null, 2);
 
-      // Render Chart if requested
       if (plotDays > 0) {
           document.getElementById('chart-container').style.display = 'block';
           renderTrendChart(allData, plotDays);
@@ -475,7 +454,6 @@ limitations under the License.
     function renderTrendChart(allData, days) {
         const ctx = document.getElementById('moodChart').getContext('2d');
 
-        // Prepare last N days labels and data
         const labels = [];
         const data = [];
         const now = new Date();
@@ -484,8 +462,8 @@ limitations under the License.
             const d = new Date();
             d.setDate(now.getDate() - i);
             const iso = getISODate(d);
-            labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-            data.push(allData[iso] ? allData[iso].score : null); // null for missing days
+            labels.push(d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }));
+            data.push(allData[iso] ? allData[iso].score : null);
         }
 
         if (moodChartInstance) {
@@ -497,7 +475,7 @@ limitations under the License.
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Mood Score',
+                    label: '心情分数',
                     data: data,
                     borderColor: '#4ecca3',
                     backgroundColor: 'rgba(78, 204, 163, 0.2)',
@@ -505,7 +483,7 @@ limitations under the License.
                     tension: 0.4,
                     fill: true,
                     pointBackgroundColor: '#45b7d1',
-                    pointRadius: 5, // Slightly larger dots
+                    pointRadius: 5,
                     pointHoverRadius: 7,
                     spanGaps: true
                 }]
@@ -516,7 +494,7 @@ limitations under the License.
                 layout: {
                     padding: {
                         left: 10,
-                        right: 25, // Extra space on the right for the last dot
+                        right: 25,
                         top: 10,
                         bottom: 10
                     }
@@ -530,7 +508,7 @@ limitations under the License.
                         grid: { color: 'rgba(255,255,255,0.05)' }
                     },
                     x: {
-                        offset: true, // Prevents points from being right on the edge
+                        offset: true,
                         ticks: {
                             color: 'rgba(255,255,255,0.6)',
                             font: { size: 10 },
@@ -555,7 +533,7 @@ limitations under the License.
     }
 
     function deleteEntry(date) {
-        if (confirm(`Delete mood entry for ${date}?`)) {
+        if (confirm(`删除 ${date} 的心情记录？`)) {
             const allData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
             delete allData[date];
             localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
@@ -567,7 +545,7 @@ limitations under the License.
         const container = document.getElementById('raw-data-container');
         const isHidden = container.style.display === 'none';
         container.style.display = isHidden ? 'block' : 'none';
-        document.getElementById('toggle-raw-btn').textContent = isHidden ? 'Hide Raw Data' : 'View Raw Data (Developer)';
+        document.getElementById('toggle-raw-btn').textContent = isHidden ? '隐藏原始数据' : '查看原始数据（开发者）';
     });
 
     document.getElementById('copy-raw-btn').addEventListener('click', () => {
@@ -575,15 +553,15 @@ limitations under the License.
         navigator.clipboard.writeText(rawJson).then(() => {
             const btn = document.getElementById('copy-raw-btn');
             const originalText = btn.textContent;
-            btn.textContent = 'Copied!';
+            btn.textContent = '已复制！';
             btn.style.background = '#4ecca3';
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.style.background = 'var(--accent-primary)';
             }, 2000);
         }).catch(err => {
-            console.error('Failed to copy: ', err);
-            alert('Failed to copy to clipboard.');
+            console.error('复制失败: ', err);
+            alert('复制到剪贴板失败。');
         });
     });
 
@@ -597,12 +575,6 @@ limitations under the License.
         loadData();
     });
 
-    // Handle incoming messages from the AI Edge Gallery (if any)
-    window.addEventListener('message', function(event) {
-        // Future extensibility
-    });
-
-    // Initial load
     loadData();
   </script>
 </body>

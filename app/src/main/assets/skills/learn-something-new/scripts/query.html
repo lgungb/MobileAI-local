@@ -1,20 +1,8 @@
 <!--
- Copyright 2026 Google LLC
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      https://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+学习新事物-查询：使用百度百科API替代维基百科（国内不可用）
 -->
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
   </head>
@@ -29,38 +17,34 @@
             params = {};
           }
 
-          const topic = params.topic || "Unknown";
-          const lang = params.lang || "en";
-          const baseUrl = `https://${lang}.wikipedia.org/w/api.php`;
-          const searchParams = new URLSearchParams({
-            action: "query",
-            format: "json",
-            generator: "search",
-            gsrsearch: topic,
-            gsrlimit: "1",
-            prop: "extracts",
-            explaintext: "1",
-            exintro: "1",
-            origin: "*",
-          });
-          const searchRes = await fetch(`${baseUrl}?${searchParams.toString()}`);
-          if (!searchRes.ok) throw new Error(`HTTP error! status: ${searchRes.status}`);
-          const searchData = await searchRes.json();
-          if (!searchData.query || !searchData.query.pages) {
-            console.warn("[learn-something-new/query.html] Wikipedia lookup returned empty structure. Yielding 'Not found'.");
+          const topic = params.topic || "未知";
+          const encodedTopic = encodeURIComponent(topic);
+
+          // 使用百度百科公开API（无需key）
+          const apiUrl = `https://baike.baidu.com/api/openapi/BaikeLemmaCardApi?scope=103&format=json&appid=379020&bk_key=${encodedTopic}&bk_length=600`;
+          try {
+            const searchRes = await fetch(apiUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' }
+            });
+            if (!searchRes.ok) throw new Error(`HTTP错误! 状态: ${searchRes.status}`);
+            const searchData = await searchRes.json();
+
+            if (searchData && searchData.data && searchData.data.abstract) {
+              const responsePayload = JSON.stringify({
+                result: JSON.stringify({
+                  title: searchData.data.lemmaTitle || topic,
+                  extract: searchData.data.abstract,
+                }),
+              });
+              console.log("[learn-something-new/query.html] 返回百度百科结果:", responsePayload);
+              return responsePayload;
+            }
+            console.warn("[learn-something-new/query.html] 百度百科查询返回空结构。返回'未找到'。");
+            return JSON.stringify({ result: "Not found" });
+          } catch (apiErr) {
+            console.warn("[learn-something-new/query.html] 百度百科API失败:", apiErr.message);
             return JSON.stringify({ result: "Not found" });
           }
-          const pages = searchData.query.pages;
-          const page = pages[Object.keys(pages)[0]];
-
-          const responsePayload = JSON.stringify({
-            result: JSON.stringify({
-              title: page.title,
-              extract: page.extract,
-            }),
-          });
-          console.log("[learn-something-new/query.html] Yielding extracted Wikipedia result payload back to model engine:", responsePayload);
-          return responsePayload;
         } catch (err) {
           return JSON.stringify({ error: err.message });
         }

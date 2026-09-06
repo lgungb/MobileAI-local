@@ -133,6 +133,7 @@ fun AgentChatScreen(
   skillManagerViewModel: SkillManagerViewModel = hiltViewModel(),
   mcpManagerViewModel: McpManagerViewModel = hiltViewModel(),
   initialQuery: String? = null,
+  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
@@ -240,6 +241,7 @@ fun AgentChatScreen(
     skillCount = skillCount,
     mcpCount = mcpCount,
     mcpToolsCount = mcpToolsCount,
+    onNavigateToTask = onNavigateToTask,
     onFirstToken = { model ->
       scope.launch(Dispatchers.Main) {
         updateProgressPanel(viewModel = viewModel, model = model, agentTools = agentTools)

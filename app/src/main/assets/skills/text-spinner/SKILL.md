@@ -1,11 +1,11 @@
 ---
 name: text-spinner
-description: Spin the given text on my head.
+description: 在我头上旋转给定的文字。
 ---
 
-# Instructions
+# 使用说明
 
-You MUST use the `run_js` tool with the following exact parameters:
+你必须使用 `run_js` 工具，传入以下精确参数：
 
-- data: A JSON string with the following fields:
-  - label: The text string to spin on my head.
+- data: JSON 字符串，包含以下字段：
+  - label: 要在头上旋转的文本字符串。
