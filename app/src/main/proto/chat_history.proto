@@ -76,4 +76,8 @@ message ChatSessionProto {
   string task_id = 5;
   // The list of messages in the session history.
   repeated ChatMessageProto messages = 6;
+  // The ID of the ConversationProfileProto that owns this session. Empty means
+  // legacy data that has not been migrated yet. Added in the conversation list
+  // refactor (field number 7 keeps backward compatibility).
+  string profile_id = 7;
 }

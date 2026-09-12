@@ -1,0 +1,67 @@
+/* Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package com.encourage.app.proto;
+
+option java_package = "com.encourage.app.proto";
+option java_outer_classname = "ConversationProfile";
+option java_multiple_files = true;
+
+// 会话类型：决定列表图标 / 统一对话界面的输入能力开关。
+//
+// 注意：字段号一经发布不得复用 / 修改，只允许追加新枚举值，保证向后兼容。
+enum ConversationType {
+  CONVERSATION_TYPE_UNSPECIFIED = 0;
+  CONVERSATION_TYPE_CHAT = 1; // 对话（文字）
+  CONVERSATION_TYPE_IMAGE = 2; // 识图
+  CONVERSATION_TYPE_AUDIO = 3; // 语音
+  CONVERSATION_TYPE_AGENT = 4; // Agent Skills
+}
+
+// 一条「模型特调配置」记录（= 微信里的一个"联系人"）。
+//
+// 一条记录 1:N 多条会话（ChatSessionProto），靠 ChatSessionProto.profile_id 关联。
+// 记录只保存模型的「名称 + 采样参数」，绝不持有 Model 运行时实例（实例由
+// ModelManagerViewModel 统一管理）。
+message ConversationProfileProto {
+  // UUID，稳定主键。
+  string id = 1;
+  // 用户可命名，默认 "{模型名} 特调"。
+  string alias = 2;
+  // llm_chat / llm_ask_image / llm_ask_audio / llm_agent_chat。
+  string task_id = 3;
+  // 关联模型（Model.name，唯一标识）。
+  string model_name = 4;
+  // 对话 / 识图 / 语音 / Agent。
+  ConversationType type = 5;
+  // 角色设定（per-record，替代全局 per-task 提示词）。
+  string system_prompt = 6;
+  // topK/temperature/topp/accelerator…（字符串化）。key 统一用 ConfigKey.id（如 topk）。
+  map<string, string> config_values = 7;
+  // Agent 专有：选中的 Agent（可空）。
+  string agent_id = 8;
+  // Agent 专有：选中的 Skill 短 id（可空）。
+  repeated string skill_ids = 9;
+  // 创建时间（Unix 毫秒）。
+  int64 created_at_ms = 10;
+  // 最后使用时间（Unix 毫秒）；列表按此倒序。
+  int64 last_used_at_ms = 11;
+  // 该记录名下的会话 id（倒序，最新在前）。
+  repeated string session_ids = 12;
+  // 冗余字段：列表直接展示，避免遍历 messages（性能）。
+  string last_message_preview = 13;
+}

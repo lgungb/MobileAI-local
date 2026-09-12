@@ -1040,4 +1040,35 @@
   <string name="bottom_nav_no_model_dialog_confirm">前往模型页</string>
   <string name="bottom_nav_no_model_dialog_cancel">稍后</string>
 
+  <!-- 会话列表改造（T01 数据层基础文案） -->
+  <string name="conversation_profile_default_alias">%1$s 特调</string>
+  <string name="conversation_profile_agent_alias_suffix">· Agent</string>
+  <string name="conversation_profile_history_alias">%1$s 特调（历史）</string>
+  <string name="conversation_profile_unnamed_model">模型</string>
+
+  <string name="conversation_list_empty_title">还没有会话</string>
+  <string name="conversation_list_empty_message">去「模型」页新建或下载一个模型，即可开始对话。</string>
+  <string name="conversation_list_empty_action">前往模型页</string>
+
+  <string name="conversation_type_chat">对话</string>
+  <string name="conversation_type_image">识图</string>
+  <string name="conversation_type_audio">语音</string>
+  <string name="conversation_type_agent">Agent</string>
+
+  <string name="conversation_save_as_new_profile_title">保存为新的特调配置？</string>
+  <string name="conversation_save_as_new_profile_message">你修改了系统提示词或采样参数，是否另存为一条新的特调配置？</string>
+  <string name="conversation_save_as_new_profile_confirm">另存为</string>
+  <string name="conversation_save_as_new_profile_cancel">取消</string>
+
+  <string name="conversation_delete_profile_title">删除该会话记录？</string>
+  <string name="conversation_delete_profile_message">将同时删除该记录下的全部聊天记录，且不可恢复。</string>
+  <string name="conversation_delete_profile_confirm">删除</string>
+  <string name="conversation_delete_profile_cancel">取消</string>
+
+  <string name="conversation_rename_profile">重命名</string>
+  <string name="conversation_new_profile">新建会话</string>
+  <string name="conversation_profile_model_missing">模型缺失</string>
+  <string name="conversation_profile_model_not_downloaded">模型未下载</string>
+  <string name="conversation_profile_delete_cd">删除该会话记录</string>
+
 </resources>

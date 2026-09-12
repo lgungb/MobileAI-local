@@ -33,6 +33,7 @@ import com.encourage.app.data.DataStoreRepository
 import com.encourage.app.data.DefaultDataStoreRepository
 import com.encourage.app.data.DefaultDownloadRepository
 import com.encourage.app.data.DownloadRepository
+import com.encourage.app.data.conversation.ConversationProfileRepository
 import com.encourage.app.proto.BenchmarkResults
 import com.encourage.app.proto.CutoutCollection
 import com.encourage.app.proto.Settings
@@ -184,6 +185,16 @@ internal object AppModule {
     lifecycleProvider: AppLifecycleProvider,
   ): DownloadRepository {
     return DefaultDownloadRepository(context, lifecycleProvider)
+  }
+
+  // Provides ConversationProfileRepository（会话列表改造 T01：复用 UserData DataStore，方案 A）
+  @Provides
+  @Singleton
+  fun provideConversationProfileRepository(
+    @ApplicationContext context: Context,
+    userDataDataStore: DataStore<UserData>,
+  ): ConversationProfileRepository {
+    return ConversationProfileRepository(userDataDataStore, context)
   }
 
   @Provides

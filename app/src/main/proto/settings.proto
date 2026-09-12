@@ -18,6 +18,7 @@ syntax = "proto3";
 package com.encourage.app.proto;
 
 import "chat_history.proto";
+import "conversation_profile.proto";
 
 option java_package = "com.encourage.app.proto";
 option java_multiple_files = true;
@@ -209,6 +210,9 @@ message UserData {
   // key   = "<模板类型>|<编辑器 key>"，例如 "REWRITE_TONE|tone"；
   // value = 该模板下用户新增的选项，多个选项用换行符 \n 分隔。
   map<string, string> custom_prompt_options = 5;
+  // 会话列表改造（M7）：用户创建的「模型特调配置」记录列表。
+  // 与 chat_sessions 同属一份 UserData，保证「删除记录 + 级联删除会话」单次原子写入。
+  repeated ConversationProfileProto conversation_profiles = 6;
 }
 
 enum FillMode {

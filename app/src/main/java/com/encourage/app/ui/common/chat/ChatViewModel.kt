@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -411,12 +412,16 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
    * @param messages List of messages to save.
    * @param originalModel The model active when the session was created.
    * @param taskId The task associated with this session.
+   * @param profileId The owning conversation profile id; empty means the session is not grouped
+   *   under any profile (e.g. legacy data). When set, the owning profile's session list, last
+   *   message preview and last-used timestamp are updated in the same atomic write.
    */
   fun saveSession(
     sessionId: String,
     messages: List<ChatMessage>,
     originalModel: String,
     taskId: String,
+    profileId: String = "",
     context: Context? = null,
   ) {
     val messagesSnapshot = messages.toList()
@@ -426,6 +431,9 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
       val title =
         firstTextMessage?.take(30)?.let { if (it.length == 30) "$it..." else it }
           ?: "New Chat Session"
+      val now = System.currentTimeMillis()
+      val lastMessagePreview =
+        messagesSnapshot.filterIsInstance<ChatMessageText>().lastOrNull()?.content.orEmpty().take(50)
 
       val protoMessages = messagesSnapshot.mapNotNull { msg ->
         val builder = ChatMessageProto.newBuilder()
@@ -519,9 +527,10 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
         ChatSessionProto.newBuilder()
           .setSessionId(sessionId)
           .setTitle(title)
-          .setTimestampMs(System.currentTimeMillis())
+          .setTimestampMs(now)
           .setOriginalModel(originalModel)
           .setTaskId(taskId)
+          .setProfileId(profileId)
           .addAllMessages(protoMessages)
           .build()
 
@@ -529,7 +538,30 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
         val currentSessions = userData.chatSessionsList.toMutableList()
         currentSessions.removeAll { it.sessionId == sessionId }
         currentSessions.add(sessionProto)
-        userData.toBuilder().clearChatSessions().addAllChatSessions(currentSessions).build()
+        val builder =
+          userData.toBuilder().clearChatSessions().addAllChatSessions(currentSessions)
+        if (profileId.isNotEmpty()) {
+          // 同步冗余字段到所属记录：会话 id 头插去重、列表摘要、最后使用时间。
+          // profile 与 session 同属一份 UserData，此处为单次原子写入。
+          val updatedProfiles =
+            userData.conversationProfilesList.map { proto ->
+              if (proto.id == profileId) {
+                val newSessionIds =
+                  listOf(sessionId) + proto.sessionIdsList.filter { it != sessionId }
+                proto
+                  .toBuilder()
+                  .clearSessionIds()
+                  .addAllSessionIds(newSessionIds)
+                  .setLastMessagePreview(lastMessagePreview)
+                  .setLastUsedAtMs(now)
+                  .build()
+              } else {
+                proto
+              }
+            }
+          builder.clearConversationProfiles().addAllConversationProfiles(updatedProfiles)
+        }
+        builder.build()
       }
     }
   }
@@ -541,19 +573,56 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
    */
   fun deleteSession(sessionId: String, context: Context? = null) {
     viewModelScope.launch(Dispatchers.IO) {
-      if (context != null) {
-        val files = context.cacheDir.listFiles()
-        files?.forEach { file ->
-          if (
-            file.name.startsWith("img_${sessionId}_") || file.name.startsWith("audio_${sessionId}_")
-          ) {
-            file.delete()
-          }
-        }
-      }
+      deleteSessionCacheFiles(sessionIds = listOf(sessionId), context = context)
       userDataDataStore?.updateData { userData ->
         val currentSessions = userData.chatSessionsList.filter { it.sessionId != sessionId }
         userData.toBuilder().clearChatSessions().addAllChatSessions(currentSessions).build()
+      }
+    }
+  }
+
+  /**
+   * Deletes all chat sessions owned by the given conversation profile, including their cached
+   * image/audio files. Sessions are linked to a profile via `ChatSessionProto.profile_id`.
+   *
+   * This is the cascade half of "delete a conversation profile": it removes the sessions and their
+   * media, while the profile record itself is removed by
+   * [com.encourage.app.data.conversation.ConversationProfileRepository.deleteProfile].
+   *
+   * @param profileId The owning conversation profile id. Empty id is a no-op.
+   * @param context Optional context used to clean up cached media files.
+   */
+  fun deleteSessionsOfProfile(profileId: String, context: Context? = null) {
+    if (profileId.isEmpty()) return
+    val dataStore = userDataDataStore ?: return
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        val sessionIds =
+          dataStore.data.first().chatSessionsList
+            .filter { it.profileId == profileId }
+            .map { it.sessionId }
+        deleteSessionCacheFiles(sessionIds = sessionIds, context = context)
+        dataStore.updateData { userData ->
+          val currentSessions = userData.chatSessionsList.filter { it.profileId != profileId }
+          userData.toBuilder().clearChatSessions().addAllChatSessions(currentSessions).build()
+        }
+      } catch (e: Exception) {
+        Log.e(TAG, "deleteSessionsOfProfile failed for profileId=$profileId", e)
+      }
+    }
+  }
+
+  /**
+   * Deletes the cached media files (`img_<sessionId>_*` / `audio_<sessionId>_*`) in `cacheDir` for
+   * the given [sessionIds].
+   */
+  private fun deleteSessionCacheFiles(sessionIds: Collection<String>, context: Context?) {
+    if (context == null || sessionIds.isEmpty()) return
+    val prefixes = sessionIds.flatMap { listOf("img_${it}_", "audio_${it}_") }
+    val files = context.cacheDir.listFiles() ?: return
+    files.forEach { file ->
+      if (prefixes.any { file.name.startsWith(it) }) {
+        file.delete()
       }
     }
   }

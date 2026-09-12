@@ -1040,4 +1040,35 @@
   <string name="bottom_nav_no_model_dialog_confirm">Go to Models</string>
   <string name="bottom_nav_no_model_dialog_cancel">Later</string>
 
+  <!-- 会话列表改造（T01 数据层基础文案） -->
+  <string name="conversation_profile_default_alias" translatable="true" description="Default alias for a conversation profile; %1$s is the model name.">%1$s Profile</string>
+  <string name="conversation_profile_agent_alias_suffix" translatable="true" description="Suffix appended to the default alias when the profile is an Agent profile.">· Agent</string>
+  <string name="conversation_profile_history_alias" translatable="true" description="Alias of the profile auto-created when migrating legacy sessions; %1$s is the model name.">%1$s Profile (History)</string>
+  <string name="conversation_profile_unnamed_model" translatable="true" description="Fallback model display name used when the model name is empty.">Model</string>
+
+  <string name="conversation_list_empty_title" translatable="true" description="Empty state title shown when the user has no conversation profiles yet.">No conversations yet</string>
+  <string name="conversation_list_empty_message" translatable="true" description="Empty state description guiding the user to create or download a model.">Go to the Models tab to create or download a model and start chatting.</string>
+  <string name="conversation_list_empty_action" translatable="true" description="Empty state action button that opens the Models tab.">Go to Models</string>
+
+  <string name="conversation_type_chat" translatable="true" description="Label of the plain text conversation type.">Chat</string>
+  <string name="conversation_type_image" translatable="true" description="Label of the image recognition conversation type.">Image</string>
+  <string name="conversation_type_audio" translatable="true" description="Label of the voice conversation type.">Voice</string>
+  <string name="conversation_type_agent" translatable="true" description="Label of the Agent conversation type.">Agent</string>
+
+  <string name="conversation_save_as_new_profile_title" translatable="true" description="Title of the dialog asking whether to save changed prompt or parameters as a new profile.">Save as a new profile?</string>
+  <string name="conversation_save_as_new_profile_message" translatable="true" description="Body of the dialog asking whether to save changed prompt or parameters as a new profile.">You changed the system prompt or sampling parameters. Save them as a new profile?</string>
+  <string name="conversation_save_as_new_profile_confirm" translatable="true" description="Confirm button of the save-as-new-profile dialog.">Save as new</string>
+  <string name="conversation_save_as_new_profile_cancel" translatable="true" description="Cancel button of the save-as-new-profile dialog.">Cancel</string>
+
+  <string name="conversation_delete_profile_title" translatable="true" description="Title of the confirmation dialog shown before deleting a conversation profile.">Delete this conversation?</string>
+  <string name="conversation_delete_profile_message" translatable="true" description="Body of the delete confirmation dialog, warning that chat history is removed too.">All chat history under this profile will be deleted as well. This cannot be undone.</string>
+  <string name="conversation_delete_profile_confirm" translatable="true" description="Confirm button of the delete profile dialog.">Delete</string>
+  <string name="conversation_delete_profile_cancel" translatable="true" description="Cancel button of the delete profile dialog.">Cancel</string>
+
+  <string name="conversation_rename_profile" translatable="true" description="Action label to rename a conversation profile.">Rename</string>
+  <string name="conversation_new_profile" translatable="true" description="Action label to create a new conversation under a profile.">New conversation</string>
+  <string name="conversation_profile_model_missing" translatable="true" description="Label shown when the model referenced by a profile no longer exists.">Model missing</string>
+  <string name="conversation_profile_model_not_downloaded" translatable="true" description="Label shown when the model referenced by a profile is not downloaded yet.">Model not downloaded</string>
+  <string name="conversation_profile_delete_cd" translatable="true" description="Content description of the button that deletes a conversation profile.">Delete this conversation</string>
+
 </resources>
