@@ -235,12 +235,19 @@ class SpeechManager(
     // 空文本直接返回，不做任何状态变更，避免 isSpeaking 置位后无法复位（朗读图标卡住）。
     if (text.trim().isEmpty()) return
     val settings = voiceSettingsProvider?.invoke()
+    val offlineDisabledByCrash =
+      context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        .getBoolean("offline_tts_disabled", false)
     val useOffline =
-      settings?.engine == VoiceEngineSnapshot.SHERPA_ONNX && offlineTtsEngine != null
+      !offlineDisabledByCrash &&
+        settings?.engine == VoiceEngineSnapshot.SHERPA_ONNX &&
+        offlineTtsEngine != null &&
+        !offlineTtsEngine.initFailed // 初始化已失败的引擎直接黑名单，避免每次点击都闪退
     Log.d(
       TAG,
       "speakWithSettings: len=${text.length}, engine=${settings?.engine}, " +
-        "offlineEnginePresent=${offlineTtsEngine != null}, useOffline=$useOffline",
+        "offlineEnginePresent=${offlineTtsEngine != null}, " +
+        "initFailed=${offlineTtsEngine?.initFailed}, useOffline=$useOffline",
     )
     if (useOffline && offlineTtsEngine.isModelValid()) {
       // 文件校验通过即可分派；native 初始化在后台线程完成。

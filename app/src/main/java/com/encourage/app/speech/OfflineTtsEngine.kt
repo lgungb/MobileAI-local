@@ -226,6 +226,12 @@ class OfflineTtsEngine(
 
   /** 引擎已加载语音包、可合成。 */
   @Volatile var isReady: Boolean = false
+
+  /**
+   * 初始化是否已失败（连续失败后自动黑名单，避免每次点击都走离线分支然后闪退）。
+   * ensureReady() 返回 false 后置为 true；应用重启后重置（不持久化，给用户重新尝试的机会）。
+   */
+  @Volatile var initFailed: Boolean = false
     private set
 
   /** 引擎加载失败的根因（界面提示用）。 */
@@ -300,6 +306,7 @@ class OfflineTtsEngine(
       Log.e(TAG, "Failed to init OfflineTts", e)
       updateLastError(e.message ?: "init_failed")
       isReady = false
+      initFailed = true // 初始化失败，加入黑名单，后续直接走系统TTS
       tts?.let { runCatching { it.free() } }
       tts = null
       false

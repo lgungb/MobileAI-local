@@ -126,5 +126,30 @@ private fun CrashScreen(errorInfo: String) {
         Text("重启应用")
       }
     }
+    // 如果崩溃信息包含 sherpa/onnx/tts 关键词，显示"切换到系统TTS"按钮
+    val isTtsCrash = errorInfo.contains("sherpa", ignoreCase = true) ||
+      errorInfo.contains("onnx", ignoreCase = true) ||
+      errorInfo.contains("OfflineTts", ignoreCase = true) ||
+      errorInfo.contains("tts", ignoreCase = true)
+    if (isTtsCrash) {
+      Button(
+        onClick = {
+          // 持久化禁用离线引擎，重启后生效
+          context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("offline_tts_disabled", true)
+            .apply()
+          Toast.makeText(context, "已切换到系统TTS，正在重启...", Toast.LENGTH_SHORT).show()
+          val pm = context.packageManager
+          val intent = pm.getLaunchIntentForPackage(context.packageName)
+          context.startActivity(intent)
+          (context as Activity).finishAffinity()
+          Runtime.getRuntime().exit(0)
+        },
+        modifier = Modifier.fillMaxWidth(),
+      ) {
+        Text("离线TTS导致崩溃，切换到系统TTS并重启")
+      }
+    }
   }
 }
