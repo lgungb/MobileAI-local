@@ -113,7 +113,11 @@ fun ConversationListScreen(
           ) { profile ->
             ConversationListItem(
               profile = profile,
-              onClick = { onProfileClick(profile) },
+              onClick = {
+                // 先刷新「最后使用时间」，再交给导航层（保证返回列表时该记录置顶）。
+                viewModel.touchLastUsed(profile.id)
+                onProfileClick(profile)
+              },
               onRequestDelete = { pendingDelete = profile },
             )
           }

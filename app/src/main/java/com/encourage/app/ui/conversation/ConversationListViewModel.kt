@@ -100,4 +100,57 @@ class ConversationListViewModel @Inject constructor(
       }
     }
   }
+
+  /**
+   * 新建一条记录并【返回】结果（供 T03「模型」Tab 新建后立即进入会话使用）。
+   *
+   * 与 [createProfile] 的唯一差别是「同步返回创建结果」，参数完全一致。
+   *
+   * @return 创建成功返回记录；失败 / modelName 为空返回 null（调用方必须兜底）。
+   */
+  suspend fun createProfileAndReturn(
+    taskId: String,
+    modelName: String,
+    type: ConversationType,
+    systemPrompt: String = "",
+    configValues: Map<String, String> = emptyMap(),
+    alias: String? = null,
+    displayName: String? = null,
+    agentId: String = "",
+    skillIds: List<String> = emptyList(),
+  ): ConversationProfile? {
+    if (modelName.isBlank()) return null
+    return try {
+      repository.createProfile(
+        taskId = taskId,
+        modelName = modelName,
+        type = type,
+        systemPrompt = systemPrompt,
+        configValues = configValues,
+        alias = alias,
+        displayName = displayName,
+        agentId = agentId,
+        skillIds = skillIds,
+      )
+    } catch (e: Exception) {
+      Log.e(TAG, "createProfileAndReturn failed for model=$modelName", e)
+      null
+    }
+  }
+
+  /**
+   * 刷新某条记录的「最后使用时间」（进入会话前调用，使列表按最近使用倒序）。
+   *
+   * @param id 记录 id；空 id 直接忽略。
+   */
+  fun touchLastUsed(id: String) {
+    if (id.isBlank()) return
+    viewModelScope.launch {
+      try {
+        repository.touchLastUsed(id)
+      } catch (e: Exception) {
+        Log.e(TAG, "touchLastUsed failed for id=$id", e)
+      }
+    }
+  }
 }

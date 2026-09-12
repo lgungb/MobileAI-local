@@ -50,4 +50,9 @@ data class CustomTaskDataForBuiltinTask(
   // 【N6 统一入口】从当前对话页导航到另一个任务的对话页（复用当前选中的模型）。
   // 用于能力选择器 Chip 的点击跳转。
   val onNavigateToTask: (Task) -> Unit = {},
+  // 【T03】绑定的「模型特调配置」记录 id（可空）。T04 由会话页消费以加载记录级提示词/参数，
+  // T03 阶段仅由导航层透传。
+  val profileId: String? = null,
+  // 【T03】对话类型（ConversationType.name，可空）。T04 由会话页消费，T03 仅透传。
+  val conversationType: String? = null,
 )

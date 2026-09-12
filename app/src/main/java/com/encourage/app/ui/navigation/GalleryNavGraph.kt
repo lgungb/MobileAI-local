@@ -65,6 +65,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -75,17 +76,23 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.encourage.app.GalleryEvent
+import com.encourage.app.R
 import com.encourage.app.customtasks.common.CustomTaskData
 import com.encourage.app.customtasks.common.CustomTaskDataForBuiltinTask
 import com.encourage.app.data.BuiltInTaskId
+import com.encourage.app.data.Model
 import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.data.Task
+import com.encourage.app.data.conversation.ConversationProfile
+import com.encourage.app.data.conversation.ConversationType
 import com.encourage.app.data.isLegacyTasks
 import com.encourage.app.firebaseAnalytics
 import com.encourage.app.ui.benchmark.BenchmarkScreen
 import com.encourage.app.ui.common.ErrorDialog
 import com.encourage.app.ui.common.ModelPageAppBar
 import com.encourage.app.ui.common.chat.ModelDownloadStatusInfoPanel
+import com.encourage.app.ui.conversation.ConversationListScreen
+import com.encourage.app.ui.conversation.ConversationListViewModel
 import com.encourage.app.ui.home.PromoScreenGm4
 import com.encourage.app.ui.modelmanager.GlobalModelManager
 import com.encourage.app.ui.modelmanager.ModelHubScreen
@@ -248,18 +255,91 @@ fun GalleryNavHost(
     }
   }
 
+  // 【T03】会话列表 VM（Activity 作用域；「模型」Tab 新建记录用）。
+  val conversationListViewModel: ConversationListViewModel = hiltViewModel()
+  val scope = rememberCoroutineScope()
+
+  // 【T03】复用 TaskTabScreen 的默认模型选择策略：优先该任务下已下载（SUCCEEDED）的第一个，
+  // 否则回退该任务的第一个模型；都没有则返回 null（调用方兜底）。
+  val pickDefaultModel: (Task) -> Model? = { targetTask ->
+    targetTask.models.firstOrNull { model ->
+      modelManagerUiState.modelDownloadStatus[model.name]?.status ==
+        ModelDownloadStatusType.SUCCEEDED
+    } ?: targetTask.models.firstOrNull()
+  }
+
+  // 【T03】统一「进入会话」入口（T04 只需改这一处）：带 profileId 与 type。
+  // 说明：taskId 用记录自身的 profile.taskId（识图=llm_ask_image、语音=llm_ask_audio、
+  // Agent=llm_agent_chat），保证 T03 独立可用；T04 再统一收敛为 llm_chat。
+  val openProfile: (ConversationProfile) -> Unit = { profile ->
+    if (profile.modelName.isBlank()) {
+      Log.w(TAG, "Profile '${profile.id}' has blank model; navigation ignored.")
+    } else {
+      try {
+        navController.navigate(
+          "$ROUTE_MODEL/${profile.taskId}/${profile.modelName}" +
+            "?profileId=${profile.id}&type=${profile.type.name}"
+        )
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to open conversation for profile '${profile.id}'.", e)
+      }
+    }
+  }
+
   // 打开某个能力的「模型选择列表」（复用既有 model_list 流程）。
   val openTaskModelList: (Task) -> Unit = { task ->
-    try {
-      pickedTask = task
-      enableModelListAnimation = true
-      navController.navigate(ROUTE_MODEL_LIST)
-      firebaseAnalytics?.logEvent(
-        GalleryEvent.CAPABILITY_SELECT.id,
-        Bundle().apply { putString("capability_name", task.id) },
-      )
-    } catch (e: Exception) {
-      Log.e(TAG, "Failed to open model list for task '${task.id}'.", e)
+    when (task.id) {
+      BuiltInTaskId.LLM_ASK_IMAGE,
+      BuiltInTaskId.LLM_ASK_AUDIO -> {
+        // 设计 §7：识图 / 语音 → 新建一条记录并【直接进全屏会话】（不经过 model_list）。
+        val type =
+          if (task.id == BuiltInTaskId.LLM_ASK_IMAGE) {
+            ConversationType.IMAGE
+          } else {
+            ConversationType.AUDIO
+          }
+        val model = pickDefaultModel(task)
+        if (model == null) {
+          // 无任何模型：引导去模型管理页下载，绝不崩溃 / 白屏。
+          Log.w(TAG, "No model available for task '${task.id}'; navigating to model manager.")
+          try {
+            navController.navigate(ROUTE_MODEL_MANAGER)
+          } catch (e: Exception) {
+            Log.e(TAG, "Failed to navigate to model manager for task '${task.id}'.", e)
+          }
+        } else {
+          scope.launch {
+            try {
+              val profile =
+                conversationListViewModel.createProfileAndReturn(
+                  taskId = task.id,
+                  modelName = model.name,
+                  type = type,
+                  displayName = model.displayName.ifBlank { model.name },
+                )
+              if (profile != null) {
+                openProfile(profile)
+              }
+            } catch (e: Exception) {
+              Log.e(TAG, "Failed to create profile for task '${task.id}'.", e)
+            }
+          }
+        }
+      }
+      else -> {
+        // 其它能力（含 Tiny Garden / Mobile Actions）：保持原样，进入 model_list。
+        try {
+          pickedTask = task
+          enableModelListAnimation = true
+          navController.navigate(ROUTE_MODEL_LIST)
+          firebaseAnalytics?.logEvent(
+            GalleryEvent.CAPABILITY_SELECT.id,
+            Bundle().apply { putString("capability_name", task.id) },
+          )
+        } catch (e: Exception) {
+          Log.e(TAG, "Failed to open model list for task '${task.id}'.", e)
+        }
+      }
     }
   }
 
@@ -285,26 +365,26 @@ fun GalleryNavHost(
       enterTransition = { EnterTransition.None },
       exitTransition = { ExitTransition.None },
     ) {
-      // Tab 1：对话（AI Chat）。
+      // Tab 1：对话（会话列表，展示 CHAT / IMAGE / AUDIO 记录）。
       composable(route = AppRoutes.TAB_CHAT) {
         TopLevelTabScaffold(currentRoute = AppRoutes.TAB_CHAT, onTabSelected = onTabSelected) {
-          TaskTabScreen(
-            taskId = BuiltInTaskId.LLM_CHAT,
-            modelManagerViewModel = modelManagerViewModel,
-            onNavigateToModelsTab = { onTabSelected(BottomTab.MODELS) },
-            onNavigateToTask = navigateToTaskConversationFromTab,
+          ConversationListScreen(
+            types = setOf(ConversationType.CHAT, ConversationType.IMAGE, ConversationType.AUDIO),
+            titleResId = R.string.bottom_nav_tab_chat,
+            onProfileClick = openProfile,
+            onNavigateToModels = { onTabSelected(BottomTab.MODELS) },
           )
         }
       }
 
-      // Tab 2：功能（Agent Skills）。
+      // Tab 2：功能（会话列表，仅展示 AGENT 记录）。
       composable(route = AppRoutes.TAB_AGENT) {
         TopLevelTabScaffold(currentRoute = AppRoutes.TAB_AGENT, onTabSelected = onTabSelected) {
-          TaskTabScreen(
-            taskId = BuiltInTaskId.LLM_AGENT_CHAT,
-            modelManagerViewModel = modelManagerViewModel,
-            onNavigateToModelsTab = { onTabSelected(BottomTab.MODELS) },
-            onNavigateToTask = navigateToTaskConversationFromTab,
+          ConversationListScreen(
+            types = setOf(ConversationType.AGENT),
+            titleResId = R.string.bottom_nav_tab_agent,
+            onProfileClick = openProfile,
+            onNavigateToModels = { onTabSelected(BottomTab.MODELS) },
           )
         }
       }
@@ -389,12 +469,23 @@ fun GalleryNavHost(
       }
 
       // 二级页：具体任务的对话界面（隐藏底栏）。
+      // 【T03】新增可选 query 参数 profileId / type（缺省可解析，兼容既有深链与旧 URL 形态）。
       composable(
-        route = "$ROUTE_MODEL/{taskId}/{modelName}?query={query}",
+        route = "$ROUTE_MODEL/{taskId}/{modelName}?profileId={profileId}&type={type}&query={query}",
         arguments =
           listOf(
             navArgument("taskId") { type = NavType.StringType },
             navArgument("modelName") { type = NavType.StringType },
+            navArgument("profileId") {
+              type = NavType.StringType
+              nullable = true
+              defaultValue = null
+            },
+            navArgument("type") {
+              type = NavType.StringType
+              nullable = true
+              defaultValue = null
+            },
             navArgument("query") {
               type = NavType.StringType
               nullable = true
@@ -407,6 +498,9 @@ fun GalleryNavHost(
         val modelName = backStackEntry.arguments?.getString("modelName") ?: ""
         val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
         val queryParam = backStackEntry.arguments?.getString("query")
+        // 【T03】记录绑定参数（T04 消费；当前仅透传）。
+        val profileId = backStackEntry.arguments?.getString("profileId")
+        val conversationType = backStackEntry.arguments?.getString("type")
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
 
@@ -425,12 +519,15 @@ fun GalleryNavHost(
                       navController.navigateUp()
                     },
                     initialQuery = queryParam,
-                    // 【N6 统一入口】能力选择器点击后导航到对应任务的对话页，复用当前模型。
+                    // 【N6 统一入口】能力选择器点击后导航到对应的对话页，复用当前模型。
                     onNavigateToTask = { targetTask ->
                       navController.navigate("$ROUTE_MODEL/${targetTask.id}/$modelName") {
                         popUpTo(AppRoutes.TAB_CHAT) { inclusive = false }
                       }
                     },
+                    // 【T03】透传记录绑定参数给会话页（T04 消费）。
+                    profileId = profileId,
+                    conversationType = conversationType,
                   )
               )
             } else {
