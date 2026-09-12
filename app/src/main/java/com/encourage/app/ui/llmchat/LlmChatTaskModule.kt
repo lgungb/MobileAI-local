@@ -51,6 +51,9 @@ import com.encourage.app.data.Model
 import com.encourage.app.data.RuntimeType
 import com.encourage.app.data.Task
 import com.encourage.app.data.conversation.ConversationProfileRepository
+import com.encourage.app.data.conversation.ConversationType
+import com.encourage.app.ui.conversation.ConversationListViewModel
+import com.encourage.app.ui.conversation.SaveProfileDialog
 import com.encourage.app.ui.theme.emptyStateContent
 import com.encourage.app.ui.theme.emptyStateTitle
 import com.google.ai.edge.litertlm.Contents
@@ -127,6 +130,18 @@ constructor(
     val myData = data as CustomTaskDataForBuiltinTask
     val viewModel: LlmChatViewModel = hiltViewModel()
     val boundProfileId by viewModel.boundProfileId.collectAsState()
+    // 【T05-③】会话列表 VM：用于「另存为特调」时创建一条新记录。
+    val conversationListViewModel: ConversationListViewModel = hiltViewModel()
+    // 协程作用域：另存为特调（创建记录 + 弹 Snackbar）在同一个作用域内串行完成。
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    // 【T05-③】当前绑定记录的别名；为空时用模型名兜底生成建议别名。
+    var boundProfileAlias by remember { mutableStateOf("") }
+    var showSaveAsNewProfileDialog by remember { mutableStateOf(false) }
+    // 会话类型来自导航参数字符串，未知值统一回退为 CHAT（见 parseConversationType）。
+    val conversationType = remember(myData.conversationType) {
+      parseConversationType(myData.conversationType)
+    }
     // 【T04】按记录绑定提示词：有 profileId 用记录级提示词，否则回退 task 全局默认。
     LaunchedEffect(task, myData.profileId) {
       val profile =
@@ -138,6 +153,8 @@ constructor(
             null
           }
         }
+      // 【T05-③】记住绑定记录的别名，供「另存为特调」预填建议名。
+      boundProfileAlias = profile?.alias.orEmpty()
       if (profile == null && !myData.conversationType.isNullOrBlank()) {
         Log.w(
           TAG,
@@ -154,71 +171,136 @@ constructor(
     }
     val uiSystemPrompt by viewModel.uiSystemPrompt.collectAsState()
     val systemPromptUpdatedMessage = stringResource(R.string.system_prompt_updated)
-    LlmChatScreen(
-      modelManagerViewModel = myData.modelManagerViewModel,
-      navigateUp = myData.onNavUp,
-      viewModel = viewModel,
-      allowEditingSystemPrompt = true,
-      curSystemPrompt = uiSystemPrompt,
-      showImagePicker = true,
-      showAudioPicker = true,
-      boundProfileId = boundProfileId.orEmpty(),
-      onSystemPromptChanged = { newPrompt ->
-        val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
-        viewModel.applySystemPromptChange(
-          task = task,
-          model = selectedModel,
-          newPrompt = newPrompt,
-          systemPromptUpdatedMessage = systemPromptUpdatedMessage,
-        )
-      },
-      emptyStateComposable = { model ->
-        Box(modifier = Modifier.fillMaxSize()) {
-          Column(
-            modifier =
-              Modifier.align(Alignment.Center).padding(horizontal = 48.dp).padding(bottom = 48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-          ) {
-            Text(stringResource(R.string.aichat_emptystate_title), style = emptyStateTitle)
-            Text(
-              stringResource(R.string.aichat_emptystate_content),
-              style = emptyStateContent,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-              textAlign = TextAlign.Center,
-            )
-            val multimodalRes =
-              when {
-                model.llmSupportImage && model.llmSupportAudio -> {
-                  if (model.runtimeType == RuntimeType.AICORE) {
-                    R.string.aichat_emptystate_support_image_aicore_audio
-                  } else {
-                    R.string.aichat_emptystate_support_image_audio
-                  }
-                }
-                model.llmSupportImage -> {
-                  if (model.runtimeType == RuntimeType.AICORE) {
-                    R.string.aichat_emptystate_support_image_aicore
-                  } else {
-                    R.string.aichat_emptystate_support_image
-                  }
-                }
-                model.llmSupportAudio -> R.string.aichat_emptystate_support_audio
-                else -> null
-              }
-
-            if (multimodalRes != null) {
+    val saveAsNewProfileSuccessMessage =
+      stringResource(R.string.conversation_save_as_new_profile_success)
+    // 外层 Box：为「另存为特调」的 Snackbar 提供底部叠放容器，不影响会话页自身布局。
+    Box(modifier = Modifier.fillMaxSize()) {
+      LlmChatScreen(
+        modelManagerViewModel = myData.modelManagerViewModel,
+        navigateUp = myData.onNavUp,
+        viewModel = viewModel,
+        allowEditingSystemPrompt = true,
+        curSystemPrompt = uiSystemPrompt,
+        showImagePicker = true,
+        showAudioPicker = true,
+        boundProfileId = boundProfileId.orEmpty(),
+        onSystemPromptChanged = { newPrompt ->
+          val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
+          viewModel.applySystemPromptChange(
+            task = task,
+            model = selectedModel,
+            newPrompt = newPrompt,
+            systemPromptUpdatedMessage = systemPromptUpdatedMessage,
+          )
+        },
+        // 【T05-③】「另存为特调」入口：把当前的提示词 + 采样参数另存为一条新记录。
+        onSaveAsNewProfile = { showSaveAsNewProfileDialog = true },
+        emptyStateComposable = { model ->
+          Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+              modifier =
+                Modifier.align(Alignment.Center).padding(horizontal = 48.dp).padding(bottom = 48.dp),
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+              Text(stringResource(R.string.aichat_emptystate_title), style = emptyStateTitle)
               Text(
-                stringResource(multimodalRes),
+                stringResource(R.string.aichat_emptystate_content),
                 style = emptyStateContent,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
               )
+              val multimodalRes =
+                when {
+                  model.llmSupportImage && model.llmSupportAudio -> {
+                    if (model.runtimeType == RuntimeType.AICORE) {
+                      R.string.aichat_emptystate_support_image_aicore_audio
+                    } else {
+                      R.string.aichat_emptystate_support_image_audio
+                    }
+                  }
+                  model.llmSupportImage -> {
+                    if (model.runtimeType == RuntimeType.AICORE) {
+                      R.string.aichat_emptystate_support_image_aicore
+                    } else {
+                      R.string.aichat_emptystate_support_image
+                    }
+                  }
+                  model.llmSupportAudio -> R.string.aichat_emptystate_support_audio
+                  else -> null
+                }
+
+              if (multimodalRes != null) {
+                Text(
+                  stringResource(multimodalRes),
+                  style = emptyStateContent,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  textAlign = TextAlign.Center,
+                )
+              }
             }
           }
-        }
-      },
-    )
+        },
+      )
+      SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter),
+      )
+    }
+
+    // 【T05-③】「另存为特调」对话框：确认后按当前提示词 + 采样参数新建一条记录。
+    if (showSaveAsNewProfileDialog) {
+      val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
+      val baseAlias = boundProfileAlias.ifBlank { selectedModel.name }
+      SaveProfileDialog(
+        suggestedAlias =
+          stringResource(
+            R.string.conversation_save_as_new_profile_suggested_alias,
+            baseAlias,
+          ),
+        onDismiss = { showSaveAsNewProfileDialog = false },
+        onConfirm = { alias ->
+          showSaveAsNewProfileDialog = false
+          scope.launch {
+            try {
+              val newProfile =
+                conversationListViewModel.createProfileAndReturn(
+                  taskId = task.id,
+                  modelName = selectedModel.name,
+                  type = conversationType,
+                  systemPrompt = uiSystemPrompt,
+                  configValues = viewModel.profileConfigValuesOf(selectedModel),
+                  alias = alias.ifBlank { null },
+                  displayName = selectedModel.displayName,
+                )
+              if (newProfile != null) {
+                snackbarHostState.showSnackbar(saveAsNewProfileSuccessMessage)
+              } else {
+                Log.e(TAG, "createProfileAndReturn returned null for model=${selectedModel.name}")
+              }
+            } catch (e: Exception) {
+              Log.e(TAG, "Save as new profile failed for model=${selectedModel.name}", e)
+            }
+          }
+        },
+      )
+    }
+  }
+}
+
+/**
+ * 【T05-③】把导航参数里的会话类型字符串解析为 [ConversationType]。
+ *
+ * 未知值（含 null / 空串）统一回退为 [ConversationType.CHAT]，保证「另存为特调」
+ * 永远落在一种合法类型上，绝不因脏数据抛异常。
+ */
+private fun parseConversationType(raw: String?): ConversationType {
+  if (raw.isNullOrBlank()) return ConversationType.CHAT
+  return try {
+    ConversationType.valueOf(raw)
+  } catch (e: IllegalArgumentException) {
+    Log.w(TAG, "Unknown conversationType '$raw'; fallback to CHAT.")
+    ConversationType.CHAT
   }
 }
 

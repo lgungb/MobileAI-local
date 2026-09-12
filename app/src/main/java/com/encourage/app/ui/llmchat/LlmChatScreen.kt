@@ -88,6 +88,8 @@ fun LlmChatScreen(
   mcpToolsCount: Int = 0,
   // 【T04】当前会话绑定的「特调记录」id（空串表示未绑定），透传给 ChatView 供 saveSession 使用。
   boundProfileId: String = "",
+  // 【T05-③】「另存为特调」入口回调；为 null 时工具栏不显示该按钮。
+  onSaveAsNewProfile: (() -> Unit)? = null,
 ) {
   ChatViewWrapper(
     viewModel = viewModel,
@@ -115,6 +117,7 @@ fun LlmChatScreen(
     showAudioPicker = showAudioPicker,
     getActiveSkills = getActiveSkills,
     boundProfileId = boundProfileId,
+    onSaveAsNewProfile = onSaveAsNewProfile,
   )
 }
 
@@ -239,6 +242,8 @@ fun ChatViewWrapper(
   mcpToolsCount: Int = 0,
   // 【T04】当前会话绑定的「特调记录」id，透传给 ChatView 供 saveSession 使用。
   boundProfileId: String = "",
+  // 【T05-③】「另存为特调」入口回调；为 null 时工具栏不显示该按钮。
+  onSaveAsNewProfile: (() -> Unit)? = null,
 ) {
   val context = LocalContext.current
   // 【防闪退】任务尚未装配完成（首次运行 / 冷启动竞态，uiState.tasks 还未就绪）时，
@@ -388,5 +393,6 @@ fun ChatViewWrapper(
     onInferenceSourceChange = { viewModel.setInferenceSource(it) },
     generationStats = generationStats,
     boundProfileId = boundProfileId,
+    onSaveAsNewProfile = onSaveAsNewProfile,
   )
 }

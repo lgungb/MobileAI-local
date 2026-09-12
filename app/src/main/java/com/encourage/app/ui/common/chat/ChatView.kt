@@ -49,6 +49,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.FilterChip
@@ -309,6 +310,13 @@ fun ChatView(
    * 透传给 saveSession，使会话与记录（含记录级提示词）真正绑定。
    */
   boundProfileId: String = "",
+  /**
+   * 【T05-③】「另存为特调」入口回调；为 null 时工具栏不显示该按钮。
+   *
+   * 仅当 [boundProfileId] 非空（当前会话已绑定记录）时才显示 —— 未绑定记录时
+   * 「另存为」没有来源，按钮出现只会误导用户。
+   */
+  onSaveAsNewProfile: (() -> Unit)? = null,
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
@@ -614,6 +622,20 @@ fun ChatView(
                   },
                 )
                 scope.launch { drawerState.open() }
+              },
+              // 【T05-③】「另存为特调」按钮：调用方未提供回调、或未绑定记录时不渲染。
+              extraActions = {
+                val saveAsNewProfile = onSaveAsNewProfile
+                if (saveAsNewProfile != null && boundProfileId.isNotBlank()) {
+                  IconButton(onClick = saveAsNewProfile) {
+                    Icon(
+                      imageVector = Icons.Rounded.Save,
+                      contentDescription = stringResource(R.string.cd_save_as_new_profile_icon),
+                      tint = MaterialTheme.colorScheme.onSurface,
+                      modifier = Modifier.size(20.dp),
+                    )
+                  }
+                }
               },
             )
           },

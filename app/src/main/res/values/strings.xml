@@ -1075,4 +1075,9 @@
   <string name="conversation_time_yesterday" translatable="true" description="Short label shown for a conversation last used yesterday.">Yesterday</string>
   <string name="conversation_save_as_new_profile_alias_label" translatable="true" description="Label of the alias field inside the save-as-new-profile dialog.">Name</string>
 
+  <!-- T05-③ 「另存为特调」：工具栏按钮无障碍描述、建议别名与成功提示。 -->
+  <string name="cd_save_as_new_profile_icon" translatable="true" description="Content description of the toolbar button that saves the current prompt and parameters as a new profile.">Save as a new profile</string>
+  <string name="conversation_save_as_new_profile_suggested_alias" translatable="true" description="Suggested alias prefilled in the save-as-new-profile dialog. %1$s is the source profile alias or the model name.">%1$s copy</string>
+  <string name="conversation_save_as_new_profile_success" translatable="true" description="Snackbar message shown after the current prompt and parameters were saved as a new profile.">Saved as a new profile</string>
+
 </resources>

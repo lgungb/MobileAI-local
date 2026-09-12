@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -85,6 +86,13 @@ fun ModelPageAppBar(
   onSystemPromptChanged: (String) -> Unit = {},
   shouldShowHistoryButton: Boolean = false,
   onHistoryClicked: (Model) -> Unit = {},
+  /**
+   * 【T05-③】调用方注入的额外工具栏动作（如「另存为特调」）。
+   *
+   * 为 null 时本组件保持原样；非 null 时其内容渲染在「配置 / 历史」按钮左侧。
+   * 是否显示由调用方决定 —— 本组件不感知业务语义（如当前会话是否已绑定记录）。
+   */
+  extraActions: @Composable (RowScope.() -> Unit)? = null,
 ) {
   var showConfigDialog by remember { mutableStateOf(false) }
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
@@ -145,6 +153,8 @@ fun ModelPageAppBar(
     },
     // The config button for the model (if existed).
     actions = {
+      // 【T05-③】调用方注入的额外动作（如「另存为特调」），渲染在配置 / 历史按钮左侧。
+      extraActions?.invoke(this)
       val downloadSucceeded = curDownloadStatus?.status == ModelDownloadStatusType.SUCCEEDED
       val showConfigButton = model.configs.isNotEmpty() && downloadSucceeded
       Box(modifier = Modifier.size(42.dp), contentAlignment = Alignment.Center) {
