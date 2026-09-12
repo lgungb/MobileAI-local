@@ -358,6 +358,13 @@ open class LlmChatViewModelBase(
     val values = profileConfigValuesOf(model)
     viewModelScope.launch {
       try {
+        // 【T05-④】记录可能在会话进行中被删除：以 DataStore 为准校验，避免写进一条不存在的
+        // 记录（仓库里是空操作，用户会以为保存成功）。不存在则解除绑定，后续回退全局默认值。
+        if (conversationProfileRepository.getProfileFromStore(profileId) == null) {
+          Log.w(TAG, "Bound profile '$profileId' no longer exists; unbind and skip persist.")
+          _boundProfileId.value = null
+          return@launch
+        }
         conversationProfileRepository.updateConfigValues(profileId, values)
       } catch (e: Exception) {
         Log.e(TAG, "persistConfigValuesToProfile failed for id=$profileId", e)
@@ -386,9 +393,19 @@ open class LlmChatViewModelBase(
     _uiSystemPrompt.value = newPrompt
     viewModelScope.launch {
       // 【T04】绑定了记录时写入记录级提示词；否则回退写入全局默认值（旧键降级为默认）。
+      // 【T05-④】记录若在会话进行中被删除 → 解除绑定并回退全局，绝不静默丢弃用户编辑。
       val profileId = _boundProfileId.value
+      var useProfile = false
       try {
         if (!profileId.isNullOrBlank() && conversationProfileRepository != null) {
+          if (conversationProfileRepository.getProfileFromStore(profileId) != null) {
+            useProfile = true
+          } else {
+            Log.w(TAG, "Bound profile '$profileId' no longer exists; fallback to global prompt.")
+            _boundProfileId.value = null
+          }
+        }
+        if (useProfile && profileId != null && conversationProfileRepository != null) {
           conversationProfileRepository.updateSystemPrompt(profileId, newPrompt)
         } else {
           systemPromptRepository?.updateSystemPrompt(task.id, newPrompt)

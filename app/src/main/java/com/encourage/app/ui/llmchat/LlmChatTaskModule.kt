@@ -144,12 +144,14 @@ constructor(
     }
     // 【T04】按记录绑定提示词：有 profileId 用记录级提示词，否则回退 task 全局默认。
     LaunchedEffect(task, myData.profileId) {
+      // 【T05-④】走 DataStore 强一致读取：冷启动 / 首次发射前内存快照可能还是空的，
+      // 用内存版 getProfile 会误判为「没有记录」而回退全局提示词。
       val profile =
         myData.profileId?.takeIf { it.isNotBlank() }?.let { id ->
           try {
-            conversationProfileRepository.getProfile(id = id)
+            conversationProfileRepository.getProfileFromStore(id = id)
           } catch (e: Exception) {
-            Log.e(TAG, "getProfile failed for id=$id", e)
+            Log.e(TAG, "getProfileFromStore failed for id=$id", e)
             null
           }
         }
