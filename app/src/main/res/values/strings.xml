@@ -1018,4 +1018,26 @@
   <string name="file_manager_saved">Saved</string>
   <string name="file_manager_save_failed">Failed to save. The folder may be read-only.</string>
 
+  <!-- 底部五 Tab 导航（微信式） -->
+  <string name="bottom_nav_tab_chat">Chat</string>
+  <string name="bottom_nav_tab_agent">Features</string>
+  <string name="bottom_nav_tab_lab">Lab</string>
+  <string name="bottom_nav_tab_models">Models</string>
+  <string name="bottom_nav_tab_system">System</string>
+
+  <!-- 「模型」页：模型下载与导入入口 -->
+  <string name="model_hub_download_import_label">Download &amp; import models</string>
+  <string name="model_hub_download_import_description">Download, import, and delete local models</string>
+
+  <!-- 无可用模型时的友好提示（禁止白屏/崩溃） -->
+  <string name="bottom_nav_no_model_title">No model available</string>
+  <string name="bottom_nav_no_model_description">Go to the Models tab to download or import a model, then come back to start chatting.</string>
+  <string name="bottom_nav_no_model_action">Go to Models</string>
+  <string name="bottom_nav_task_unavailable_title">Feature unavailable</string>
+  <string name="bottom_nav_task_unavailable_description">This feature is not ready yet. Please try again shortly.</string>
+  <string name="bottom_nav_no_model_dialog_title">No downloaded model</string>
+  <string name="bottom_nav_no_model_dialog_message">There is no downloaded model yet. Download one from the Models tab to start chatting.</string>
+  <string name="bottom_nav_no_model_dialog_confirm">Go to Models</string>
+  <string name="bottom_nav_no_model_dialog_cancel">Later</string>
+
 </resources>

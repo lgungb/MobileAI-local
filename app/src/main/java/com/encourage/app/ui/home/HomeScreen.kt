@@ -16,16 +16,7 @@
 
 package com.encourage.app.ui.home
 
-// import androidx.compose.ui.tooling.preview.Preview
-// import com.encourage.app.ui.theme.GalleryTheme
-// import com.encourage.app.ui.preview.PreviewModelManagerViewModel
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -56,34 +47,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ListAlt
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Error
-import androidx.compose.material.icons.rounded.Flag
-import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Science
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.SmartToy
-import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -123,11 +103,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import com.encourage.app.GalleryTopAppBar
 import com.encourage.app.R
-import com.encourage.app.data.AppBarAction
-import com.encourage.app.data.AppBarActionType
 import com.encourage.app.data.BuiltInTaskId
 import com.encourage.app.data.Category
 import com.encourage.app.data.CategoryInfo
@@ -135,10 +112,9 @@ import com.encourage.app.data.Task
 import com.encourage.app.ui.common.RevealingText
 import com.encourage.app.ui.common.SwipingText
 import com.encourage.app.ui.common.TaskIcon
-import com.encourage.app.ui.common.buildTrackableUrlAnnotatedString
 import com.encourage.app.ui.common.rememberDelayedAnimationProgress
-import com.encourage.app.ui.help.HelpCenterDialog
 import com.encourage.app.ui.filemanager.FileManagerDialog
+import com.encourage.app.ui.help.HelpCenterDialog
 import com.encourage.app.ui.modelmanager.ModelManagerViewModel
 import com.encourage.app.ui.tasks.TaskCenterDialog
 import com.encourage.app.ui.theme.customColors
@@ -146,7 +122,6 @@ import com.encourage.app.ui.theme.homePageTitleStyle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val TAG = "AGHomeScreen"
 private const val TASK_COUNT_ANIMATION_DURATION = 250
 private const val ANIMATION_INIT_DELAY = 0L
 private const val TOP_APP_BAR_ANIMATION_DURATION = 600
@@ -168,6 +143,13 @@ private object HomeScreenDestination {
 
 private val PREDEFINED_CATEGORY_ORDER = listOf(Category.LLM.id, Category.EXPERIMENTAL.id)
 
+/**
+ * 旧版首页。
+ *
+ * 注意：自「底部五 Tab 导航（微信式）」改造后，本页已不再作为启动页/导航目标——其能力入口被
+ * 收敛进「模型」Tab 与「系统」Tab。这里保留了原首页的其余视图组件（AppTitle / TaskList /
+ * TaskCard / HomeHelpCard 等）作为可复用素材；左侧抽屉（ModalNavigationDrawer）已按需求移除。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -186,7 +168,6 @@ fun HomeScreen(
   var showFileManager by remember { mutableStateOf(false) }
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
-  val isDevBuild = context.packageName.endsWith(".dev")
 
   var tasks = uiState.tasks
 
@@ -223,485 +204,310 @@ fun HomeScreen(
         .map { categoryMap[it]!! }
     }
 
-    // The code below manages the display of the model allowlist loading indicator with a debounced
-    // delay. It ensures that a progress indicator is only shown if the loading operation
-    // (represented by `uiState.loadingModelAllowlist`) takes longer than 200 milliseconds.
-    // If the loading completes within 200ms, the indicator is never shown,
-    // preventing a "flicker" and improving the perceived responsiveness of the UI.
-    // The `loadingModelAllowlistDelayed` state is used to control the actual
-    // visibility of the indicator based on this debounced logic.
-    var loadingModelAllowlistDelayed by remember { mutableStateOf(false) }
-    // This effect runs whenever uiState.loadingModelAllowlist changes
-    LaunchedEffect(uiState.loadingModelAllowlist) {
+  // The code below manages the display of the model allowlist loading indicator with a debounced
+  // delay. It ensures that a progress indicator is only shown if the loading operation
+  // (represented by `uiState.loadingModelAllowlist`) takes longer than 200 milliseconds.
+  // If the loading completes within 200ms, the indicator is never shown,
+  // preventing a "flicker" and improving the perceived responsiveness of the UI.
+  // The `loadingModelAllowlistDelayed` state is used to control the actual
+  // visibility of the indicator based on this debounced logic.
+  var loadingModelAllowlistDelayed by remember { mutableStateOf(false) }
+  // This effect runs whenever uiState.loadingModelAllowlist changes
+  LaunchedEffect(uiState.loadingModelAllowlist) {
+    if (uiState.loadingModelAllowlist) {
+      // If loading starts, wait for 200ms
+      delay(200)
+      // After 200ms, check if loadingModelAllowlist is still true
       if (uiState.loadingModelAllowlist) {
-        // If loading starts, wait for 200ms
-        delay(200)
-        // After 200ms, check if loadingModelAllowlist is still true
-        if (uiState.loadingModelAllowlist) {
-          loadingModelAllowlistDelayed = true
-        }
-      } else {
-        // If loading finishes, immediately hide the indicator
-        loadingModelAllowlistDelayed = false
+        loadingModelAllowlistDelayed = true
       }
+    } else {
+      // If loading finishes, immediately hide the indicator
+      loadingModelAllowlistDelayed = false
     }
+  }
 
-    // Label and spinner to show when in the process of loading model allowlist.
-    if (loadingModelAllowlistDelayed) {
-      Row(
-        modifier = Modifier.fillMaxSize(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-      ) {
-        CircularProgressIndicator(
-          trackColor = MaterialTheme.colorScheme.surfaceVariant,
-          strokeWidth = 3.dp,
-          modifier = Modifier.padding(end = 8.dp).size(20.dp),
-        )
-        Text(
-          stringResource(R.string.loading_model_list),
-          style = MaterialTheme.typography.bodyMedium,
-        )
-      }
+  // Label and spinner to show when in the process of loading model allowlist.
+  if (loadingModelAllowlistDelayed) {
+    Row(
+      modifier = Modifier.fillMaxSize(),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.Center,
+    ) {
+      CircularProgressIndicator(
+        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        strokeWidth = 3.dp,
+        modifier = Modifier.padding(end = 8.dp).size(20.dp),
+      )
+      Text(
+        stringResource(R.string.loading_model_list),
+        style = MaterialTheme.typography.bodyMedium,
+      )
     }
-    // Main UI when allowlist is done loading.
-    if (!loadingModelAllowlistDelayed && !uiState.loadingModelAllowlist) {
-      val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-
-      val requestPermissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-          isGranted: Boolean ->
-          if (isGranted) {
-            // FCM SDK (and your app) can post notifications.
-          }
-        }
-
-      LaunchedEffect(Unit) {
-        delay(2000)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-          if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-              PackageManager.PERMISSION_GRANTED
-          ) {
-            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-          }
-        }
-      }
-
-      // Close the menu when back button is pressed.
-      BackHandler(drawerState.isOpen) { scope.launch { drawerState.close() } }
-
-      ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-          ModalDrawerSheet {
-            Column(
-              modifier =
-                Modifier.fillMaxWidth()
-                  .verticalScroll(rememberScrollState())
-                  .padding(horizontal = 16.dp, vertical = 24.dp)
-            ) {
-              // Drawer header: app name.
-              Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 8.dp, bottom = 16.dp),
-              )
-
-              // Main group: conversations.
-              DrawerGroupHeader(stringResource(R.string.drawer_group_main))
-              val chatTask = tasks.find { it.id == BuiltInTaskId.LLM_CHAT }
-              val agentChatTask = tasks.find { it.id == BuiltInTaskId.LLM_AGENT_CHAT }
-              val promptLabTask = tasks.find { it.id == BuiltInTaskId.LLM_PROMPT_LAB }
-              if (chatTask != null) {
-                DrawerListItem(
-                  icon = Icons.Rounded.Chat,
-                  label = stringResource(R.string.drawer_chat_label),
-                  description = stringResource(R.string.drawer_chat_description),
-                  onClick = {
-                    scope.launch { drawerState.close() }
-                    scope.launch {
-                      delay(50)
-                      navigateToTaskScreen(chatTask)
-                    }
-                  },
-                )
-              }
-              if (agentChatTask != null) {
-                DrawerListItem(
-                  icon = Icons.Rounded.SmartToy,
-                  label = stringResource(R.string.drawer_agent_chat_label),
-                  description = stringResource(R.string.drawer_agent_chat_description),
-                  onClick = {
-                    scope.launch { drawerState.close() }
-                    scope.launch {
-                      delay(50)
-                      navigateToTaskScreen(agentChatTask)
-                    }
-                  },
-                )
-              }
-              if (promptLabTask != null) {
-                DrawerListItem(
-                  icon = Icons.Rounded.Science,
-                  label = stringResource(R.string.drawer_prompt_lab_label),
-                  description = stringResource(R.string.drawer_prompt_lab_description),
-                  onClick = {
-                    scope.launch { drawerState.close() }
-                    scope.launch {
-                      delay(50)
-                      navigateToTaskScreen(promptLabTask)
-                    }
-                  },
-                )
-              }
-
-              // Smart group: scheduled tasks.
-              DrawerGroupHeader(stringResource(R.string.drawer_group_smart))
-              DrawerListItem(
-                icon = Icons.Rounded.TaskAlt,
-                label = stringResource(R.string.drawer_task_center_label),
-                description = stringResource(R.string.drawer_task_center_description),
-                onClick = {
-                  showTaskCenter = true
-                  scope.launch { drawerState.close() }
-                },
-              )
-              DrawerListItem(
-                icon = Icons.Rounded.Folder,
-                label = stringResource(R.string.drawer_file_manager_label),
-                description = stringResource(R.string.drawer_file_manager_description),
-                onClick = {
-                  showFileManager = true
-                  scope.launch { drawerState.close() }
-                },
-              )
-
-              // System group: models, notifications, settings, help.
-              DrawerGroupHeader(stringResource(R.string.drawer_group_system))
-              DrawerListItem(
-                icon = Icons.AutoMirrored.Rounded.ListAlt,
-                label = stringResource(R.string.drawer_models_label),
-                description = stringResource(R.string.drawer_models_description),
-                onClick = {
-                  scope.launch { drawerState.close() }
-                  scope.launch {
-                    delay(50)
-                    onModelsClicked()
-                  }
-                },
-              )
-              DrawerListItem(
-                icon = Icons.Rounded.Notifications,
-                label = stringResource(R.string.drawer_notifications_label),
-                description = stringResource(R.string.drawer_notifications_description),
-                onClick = {
-                  scope.launch { drawerState.close() }
-                  scope.launch {
-                    delay(50)
-                    onNotificationsClicked()
-                  }
-                },
-              )
-              DrawerListItem(
-                icon = Icons.Rounded.Settings,
-                label = stringResource(R.string.drawer_settings_label),
-                description = stringResource(R.string.drawer_settings_description),
-                onClick = {
-                  showSettingsDialog = true
-                  scope.launch { drawerState.close() }
-                },
-              )
-              DrawerListItem(
-                icon = Icons.Rounded.HelpOutline,
-                label = stringResource(R.string.drawer_help_label),
-                description = stringResource(R.string.drawer_help_description),
-                onClick = {
-                  showHelpCenter = true
-                  scope.launch { drawerState.close() }
-                },
-              )
+  }
+  // Main UI when allowlist is done loading.
+  if (!loadingModelAllowlistDelayed && !uiState.loadingModelAllowlist) {
+    Scaffold(
+      containerColor = MaterialTheme.colorScheme.background,
+      topBar = {
+        // Top bar animation:
+        //
+        // Fade in and move down at the same time.
+        val progress =
+          if (!enableAnimation) 1f
+          else
+            rememberDelayedAnimationProgress(
+              initialDelay = ANIMATION_INIT_DELAY - 50,
+              animationDurationMs = TOP_APP_BAR_ANIMATION_DURATION,
+              animationLabel = "top bar",
+            )
+        Box(
+          modifier =
+            Modifier.graphicsLayer {
+              alpha = progress
+              translationY = ((-16).dp * (1 - progress)).toPx()
             }
-          }
-        },
-        gesturesEnabled = drawerState.isOpen,
-      ) {
-        Scaffold(
-          containerColor = MaterialTheme.colorScheme.background,
-          topBar = {
-            // Top bar animation:
-            //
-            // Fade in and move down at the same time.
-            val progress =
-              if (!enableAnimation) 1f
-              else
-                rememberDelayedAnimationProgress(
-                  initialDelay = ANIMATION_INIT_DELAY - 50,
-                  animationDurationMs = TOP_APP_BAR_ANIMATION_DURATION,
-                  animationLabel = "top bar",
-                )
-            Box(
-              modifier =
-                Modifier.graphicsLayer {
-                  alpha = progress
-                  translationY = ((-16).dp * (1 - progress)).toPx()
-                }
-            ) {
-              GalleryTopAppBar(
-                title = stringResource(HomeScreenDestination.titleRes),
-                leftAction =
-                  AppBarAction(
-                    actionType = AppBarActionType.MENU,
-                    actionFn = {
-                      scope.launch { drawerState.apply { if (isClosed) open() else close() } }
-                    },
-                  ),
-              )
-            }
-          },
-        ) { innerPadding ->
-          // Outer box for coloring the background edge to edge.
-          Box(
-            contentAlignment = Alignment.TopCenter,
-            modifier =
-              Modifier.fillMaxSize()
-                .background(
-                  if (gm4) {
-                    MaterialTheme.colorScheme.surface
-                  } else {
-                    MaterialTheme.colorScheme.surfaceContainer
-                  }
-                ),
-          ) {
-            // Inner box to hold content.
-            Box(
-              contentAlignment = Alignment.TopCenter,
-              modifier =
-                Modifier.fillMaxSize()
-                  .padding(top = innerPadding.calculateTopPadding())
-                  .verticalScroll(rememberScrollState()),
-            ) {
-              // Background star at top.
+        ) {
+          GalleryTopAppBar(title = stringResource(HomeScreenDestination.titleRes))
+        }
+      },
+    ) { innerPadding ->
+      // Outer box for coloring the background edge to edge.
+      Box(
+        contentAlignment = Alignment.TopCenter,
+        modifier =
+          Modifier.fillMaxSize()
+            .background(
               if (gm4) {
-                val progress =
-                  if (!enableAnimation) {
-                    1f
-                  } else {
-                    rememberDelayedAnimationProgress(
-                      initialDelay = ANIMATION_INIT_DELAY,
-                      animationDurationMs = 2000,
-                      animationLabel = "bg star",
-                    )
-                  }
-                val configuration = LocalConfiguration.current
-                val screenWidth = configuration.screenWidthDp.dp
-                val targetWidth = screenWidth * 1.5f
-                Image(
-                  painter = painterResource(id = R.drawable.bg_star),
-                  contentDescription = null,
-                  modifier =
-                    Modifier.requiredWidth(targetWidth)
-                      .blur(radius = 35.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-                      .offset(x = screenWidth * 0.25f, y = -screenWidth * 0.1f)
-                      .graphicsLayer {
-                        rotationZ = (1f - progress) * 40f
-                        scaleX = 0.4f + 0.6f * progress
-                        scaleY = 0.4f + 0.6f * progress
-                        alpha = progress * 2f
-                      },
-                  contentScale = ContentScale.Crop,
-                  colorFilter = ColorFilter.tint(MaterialTheme.customColors.bgStarColor),
+                MaterialTheme.colorScheme.surface
+              } else {
+                MaterialTheme.colorScheme.surfaceContainer
+              }
+            ),
+      ) {
+        // Inner box to hold content.
+        Box(
+          contentAlignment = Alignment.TopCenter,
+          modifier =
+            Modifier.fillMaxSize()
+              .padding(top = innerPadding.calculateTopPadding())
+              .verticalScroll(rememberScrollState()),
+        ) {
+          // Background star at top.
+          if (gm4) {
+            val progress =
+              if (!enableAnimation) {
+                1f
+              } else {
+                rememberDelayedAnimationProgress(
+                  initialDelay = ANIMATION_INIT_DELAY,
+                  animationDurationMs = 2000,
+                  animationLabel = "bg star",
                 )
               }
-
-              Column(modifier = Modifier.fillMaxWidth()) {
-                var selectedCategoryIndex by remember { mutableIntStateOf(0) }
-
-                // App title and intro text.
-                Column(
-                  modifier =
-                    Modifier.padding(
-                        horizontal = if (gm4) 24.dp else 40.dp,
-                        vertical = if (gm4) 0.dp else 48.dp,
-                      )
-                      .padding(top = 24.dp, bottom = 16.dp)
-                      .semantics(mergeDescendants = true) {},
-                  verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                  if (gm4) {
-                    AppTitleGm4(enableAnimation = enableAnimation)
-                  } else {
-                    AppTitle(enableAnimation = enableAnimation)
-                  }
-                  IntroText(enableAnimation = enableAnimation, gm4 = gm4)
-                  if (gm4) {
-                    TryGm4IntroText(enableAnimation = enableAnimation)
-                  }
-                  // Help hint card (H4).
-                  HomeHelpCard(
-                    enableAnimation = enableAnimation,
-                    onClick = { showHelpCenter = true },
-                  )
-                }
-
-                // 【N6 统一入口】主入口 + 快捷直达：把分散的能力收敛为"一个主入口 + 3个高频快捷"。
-                // 主入口默认进入 AI 对话；快捷直达保留老用户肌肉记忆（识图/听写/快捷任务）。
-                // 全部能力仍可通过下方分类 Tab 浏览。
-                val chatTask = tasks.find { it.id == BuiltInTaskId.LLM_CHAT }
-                val askImageTask = tasks.find { it.id == BuiltInTaskId.LLM_ASK_IMAGE }
-                val askAudioTask = tasks.find { it.id == BuiltInTaskId.LLM_ASK_AUDIO }
-                val promptLabTask = tasks.find { it.id == BuiltInTaskId.LLM_PROMPT_LAB }
-                Column(
-                  modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 8.dp),
-                  verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                  // 主入口：开始对话（唯一视觉焦点）。
-                  if (chatTask != null) {
-                    Card(
-                      onClick = { navigateToTaskScreen(chatTask) },
-                      modifier = Modifier.fillMaxWidth(),
-                      colors =
-                        CardDefaults.cardColors(
-                          containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                    ) {
-                      Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                      ) {
-                        Icon(
-                          Icons.Rounded.Chat,
-                          contentDescription = null,
-                          modifier = Modifier.size(30.dp),
-                          tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                          Text(
-                            chatTask.label,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                          )
-                          if (chatTask.shortDescription.isNotBlank()) {
-                            Text(
-                              chatTask.shortDescription,
-                              style = MaterialTheme.typography.bodySmall,
-                              color =
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
-                            )
-                          }
-                        }
-                        Icon(
-                          Icons.Rounded.ChevronRight,
-                          contentDescription = null,
-                          tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                      }
-                    }
-                  }
-
-                  // 快捷直达：识图 / 听写 / 快捷任务（横向三等分）。
-                  val quickEntries =
-                    listOfNotNull(
-                      askImageTask?.let { it to Icons.Rounded.Image },
-                      askAudioTask?.let { it to Icons.Rounded.Mic },
-                      promptLabTask?.let { it to Icons.Rounded.Science },
-                    )
-                  if (quickEntries.isNotEmpty()) {
-                    Row(
-                      modifier = Modifier.fillMaxWidth(),
-                      horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                      for ((task, icon) in quickEntries) {
-                        Card(
-                          onClick = { navigateToTaskScreen(task) },
-                          modifier = Modifier.weight(1f),
-                          colors =
-                            CardDefaults.cardColors(
-                              containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            ),
-                        ) {
-                          Column(
-                            modifier =
-                              Modifier.padding(vertical = 14.dp, horizontal = 4.dp).fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                          ) {
-                            Icon(
-                              icon,
-                              contentDescription = task.label,
-                              modifier = Modifier.size(26.dp),
-                              tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                              task.label,
-                              style = MaterialTheme.typography.labelMedium,
-                              textAlign = TextAlign.Center,
-                              maxLines = 1,
-                            )
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-
-                // Tab header for categories.
-                //
-                // synchronizes the `pagerState` and the `selectedCategoryIndex` to ensure that
-                //  both the tab header and the task list always show the correct category and page.
-                val pagerState = rememberPagerState(pageCount = { sortedCategories.size })
-                LaunchedEffect(pagerState.settledPage) {
-                  selectedCategoryIndex = pagerState.settledPage
-                }
-                if (sortedCategories.size > 1) {
-                  CategoryTabHeader(
-                    sortedCategories = sortedCategories,
-                    selectedIndex = selectedCategoryIndex,
-                    enableAnimation = enableAnimation,
-                    onCategorySelected = { index ->
-                      selectedCategoryIndex = index
-                      scope.launch { pagerState.animateScrollToPage(page = index) }
-                    },
-                  )
-                }
-
-                // Task list in a horizontal pager. Each page shows the list of tasks for the
-                // category.
-                val grid = gm4
-                TaskList(
-                  modelManagerViewModel = modelManagerViewModel,
-                  pagerState = pagerState,
-                  sortedCategories = sortedCategories,
-                  tasksByCategories = uiState.tasksByCategory,
-                  enableAnimation = enableAnimation,
-                  navigateToTaskScreen = navigateToTaskScreen,
-                  gm4 = gm4,
-                  grid = grid,
-                )
-
-                Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding() + 10.dp))
-              }
-            }
-
-            // Gradient overlay at the bottom.
-            Box(
+            val configuration = LocalConfiguration.current
+            val screenWidth = configuration.screenWidthDp.dp
+            val targetWidth = screenWidth * 1.5f
+            Image(
+              painter = painterResource(id = R.drawable.bg_star),
+              contentDescription = null,
               modifier =
-                Modifier.fillMaxWidth()
-                  .height(innerPadding.calculateBottomPadding())
-                  .background(
-                    Brush.verticalGradient(
-                      colors = listOf(Color.Transparent, MaterialTheme.colorScheme.surfaceContainer)
-                    )
-                  )
-                  .align(Alignment.BottomCenter)
+                Modifier.requiredWidth(targetWidth)
+                  .blur(radius = 35.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                  .offset(x = screenWidth * 0.25f, y = -screenWidth * 0.1f)
+                  .graphicsLayer {
+                    rotationZ = (1f - progress) * 40f
+                    scaleX = 0.4f + 0.6f * progress
+                    scaleY = 0.4f + 0.6f * progress
+                    alpha = progress * 2f
+                  },
+              contentScale = ContentScale.Crop,
+              colorFilter = ColorFilter.tint(MaterialTheme.customColors.bgStarColor),
             )
           }
+
+          Column(modifier = Modifier.fillMaxWidth()) {
+            var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+
+            // App title and intro text.
+            Column(
+              modifier =
+                Modifier.padding(
+                    horizontal = if (gm4) 24.dp else 40.dp,
+                    vertical = if (gm4) 0.dp else 48.dp,
+                  )
+                  .padding(top = 24.dp, bottom = 16.dp)
+                  .semantics(mergeDescendants = true) {},
+              verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              if (gm4) {
+                AppTitleGm4(enableAnimation = enableAnimation)
+              } else {
+                AppTitle(enableAnimation = enableAnimation)
+              }
+              IntroText(enableAnimation = enableAnimation, gm4 = gm4)
+              if (gm4) {
+                TryGm4IntroText(enableAnimation = enableAnimation)
+              }
+              // Help hint card (H4).
+              HomeHelpCard(
+                enableAnimation = enableAnimation,
+                onClick = { showHelpCenter = true },
+              )
+            }
+
+            // 【N6 统一入口】主入口 + 快捷直达：把分散的能力收敛为"一个主入口 + 3个高频快捷"。
+            // 主入口默认进入 AI 对话；快捷直达保留老用户肌肉记忆（识图/听写/快捷任务）。
+            // 全部能力仍可通过下方分类 Tab 浏览。
+            val chatTask = tasks.find { it.id == BuiltInTaskId.LLM_CHAT }
+            val askImageTask = tasks.find { it.id == BuiltInTaskId.LLM_ASK_IMAGE }
+            val askAudioTask = tasks.find { it.id == BuiltInTaskId.LLM_ASK_AUDIO }
+            val promptLabTask = tasks.find { it.id == BuiltInTaskId.LLM_PROMPT_LAB }
+            Column(
+              modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 8.dp),
+              verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+              // 主入口：开始对话（唯一视觉焦点）。
+              if (chatTask != null) {
+                Card(
+                  onClick = { navigateToTaskScreen(chatTask) },
+                  modifier = Modifier.fillMaxWidth(),
+                  colors =
+                    CardDefaults.cardColors(
+                      containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
+                ) {
+                  Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                  ) {
+                    Icon(
+                      Icons.Rounded.Chat,
+                      contentDescription = null,
+                      modifier = Modifier.size(30.dp),
+                      tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(
+                        chatTask.label,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                      )
+                      if (chatTask.shortDescription.isNotBlank()) {
+                        Text(
+                          chatTask.shortDescription,
+                          style = MaterialTheme.typography.bodySmall,
+                          color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                        )
+                      }
+                    }
+                    Icon(
+                      Icons.Rounded.ChevronRight,
+                      contentDescription = null,
+                      tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                  }
+                }
+              }
+
+              // 快捷直达：识图 / 听写 / 快捷任务（横向三等分）。
+              val quickEntries =
+                listOfNotNull(
+                  askImageTask?.let { it to Icons.Rounded.Image },
+                  askAudioTask?.let { it to Icons.Rounded.Mic },
+                  promptLabTask?.let { it to Icons.Rounded.Science },
+                )
+              if (quickEntries.isNotEmpty()) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                  for ((task, icon) in quickEntries) {
+                    Card(
+                      onClick = { navigateToTaskScreen(task) },
+                      modifier = Modifier.weight(1f),
+                      colors =
+                        CardDefaults.cardColors(
+                          containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                    ) {
+                      Column(
+                        modifier =
+                          Modifier.padding(vertical = 14.dp, horizontal = 4.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                      ) {
+                        Icon(
+                          icon,
+                          contentDescription = task.label,
+                          modifier = Modifier.size(26.dp),
+                          tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                          task.label,
+                          style = MaterialTheme.typography.labelMedium,
+                          textAlign = TextAlign.Center,
+                          maxLines = 1,
+                        )
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            // Tab header for categories.
+            //
+            // synchronizes the `pagerState` and the `selectedCategoryIndex` to ensure that
+            //  both the tab header and the task list always show the correct category and page.
+            val pagerState = rememberPagerState(pageCount = { sortedCategories.size })
+            LaunchedEffect(pagerState.settledPage) { selectedCategoryIndex = pagerState.settledPage }
+            if (sortedCategories.size > 1) {
+              CategoryTabHeader(
+                sortedCategories = sortedCategories,
+                selectedIndex = selectedCategoryIndex,
+                enableAnimation = enableAnimation,
+                onCategorySelected = { index ->
+                  selectedCategoryIndex = index
+                  scope.launch { pagerState.animateScrollToPage(page = index) }
+                },
+              )
+            }
+
+            // Task list in a horizontal pager. Each page shows the list of tasks for the
+            // category.
+            val grid = gm4
+            TaskList(
+              modelManagerViewModel = modelManagerViewModel,
+              pagerState = pagerState,
+              sortedCategories = sortedCategories,
+              tasksByCategories = uiState.tasksByCategory,
+              enableAnimation = enableAnimation,
+              navigateToTaskScreen = navigateToTaskScreen,
+              gm4 = gm4,
+              grid = grid,
+            )
+
+            Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding() + 10.dp))
+          }
         }
+
+        // Gradient overlay at the bottom.
+        Box(
+          modifier =
+            Modifier.fillMaxWidth()
+              .height(innerPadding.calculateBottomPadding())
+              .background(
+                Brush.verticalGradient(
+                  colors = listOf(Color.Transparent, MaterialTheme.colorScheme.surfaceContainer)
+                )
+              )
+              .align(Alignment.BottomCenter)
+        )
       }
     }
-
+  }
 
   // Settings dialog.
   if (showSettingsDialog) {
@@ -712,17 +518,17 @@ fun HomeScreen(
     )
   }
 
-  // Task center dialog (H1 drawer entry).
+  // Task center dialog.
   if (showTaskCenter) {
     TaskCenterDialog(onDismissed = { showTaskCenter = false })
   }
 
-  // Help center dialog (H4).
+  // Help center dialog.
   if (showHelpCenter) {
     HelpCenterDialog(onDismissed = { showHelpCenter = false })
   }
 
-  // File manager dialog (H6).
+  // File manager dialog.
   if (showFileManager) {
     FileManagerDialog(onDismissed = { showFileManager = false })
   }
@@ -1356,70 +1162,6 @@ private fun getCategoryLabel(context: Context, category: CategoryInfo): String {
   return context.getString(R.string.category_unlabeled)
 }
 
-/** Drawer section header. */
-@Composable
-private fun DrawerGroupHeader(title: String) {
-  Text(
-    title,
-    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-    color = MaterialTheme.colorScheme.primary,
-    modifier = Modifier.padding(start = 8.dp, top = 20.dp, bottom = 6.dp),
-  )
-}
-
-/** A single navigation row inside the drawer. */
-@Composable
-private fun DrawerListItem(
-  icon: ImageVector,
-  label: String,
-  description: String,
-  onClick: () -> Unit,
-  modifier: Modifier = Modifier,
-) {
-  Row(
-    modifier =
-      modifier
-        .fillMaxWidth()
-        .clip(RoundedCornerShape(16.dp))
-        .clickable(onClick = onClick)
-        .padding(horizontal = 12.dp, vertical = 12.dp),
-    verticalAlignment = Alignment.CenterVertically,
-  ) {
-    Box(
-      modifier =
-        Modifier.size(40.dp)
-          .clip(RoundedCornerShape(12.dp))
-          .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-      contentAlignment = Alignment.Center,
-    ) {
-      Icon(
-        icon,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.size(22.dp),
-      )
-    }
-    Spacer(modifier = Modifier.width(12.dp))
-    Column(modifier = Modifier.weight(1f)) {
-      Text(
-        label,
-        color = MaterialTheme.colorScheme.onSurface,
-        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-      )
-      Text(
-        description,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.bodySmall,
-      )
-    }
-    Icon(
-      Icons.Rounded.ChevronRight,
-      contentDescription = null,
-      tint = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-  }
-}
-
 /** Help hint card shown on the home page. */
 @Composable
 private fun HomeHelpCard(
@@ -1445,9 +1187,7 @@ private fun HomeHelpCard(
           translationY = (CONTENT_COMPOSABLES_OFFSET_Y.dp * (1 - progress)).toPx()
         },
     colors =
-      CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.primaryContainer
-      ),
+      CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
   ) {
     Row(
       modifier =

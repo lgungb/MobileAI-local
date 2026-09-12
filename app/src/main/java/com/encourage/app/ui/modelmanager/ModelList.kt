@@ -44,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.encourage.app.R
 import com.encourage.app.data.Model
+import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.data.Task
 import com.encourage.app.data.supportModelBenchmark
 import com.encourage.app.ui.common.ClickableLink
@@ -131,6 +133,17 @@ fun ModelList(
         }
       }
     }
+
+  // 需求：模型选择列表需优先展示「已下载」的模型（SUCCEEDED）。
+  // 这里按下载状态降序排序（true 在前），其余保持原有相对顺序，保证已下载模型置顶、便于直接使用。
+  val uiState by modelManagerViewModel.uiState.collectAsState()
+  val modelDownloadStatus = uiState.modelDownloadStatus
+  val sortedModels = models.sortedByDescending {
+    modelDownloadStatus[it.name]?.status == ModelDownloadStatusType.SUCCEEDED
+  }
+  val sortedImportedModels = importedModels.sortedByDescending {
+    modelDownloadStatus[it.name]?.status == ModelDownloadStatusType.SUCCEEDED
+  }
 
   val listState = rememberLazyListState()
 
@@ -365,7 +378,7 @@ fun ModelList(
       }
 
       // List of imported models within a task.
-      items(items = importedModels, key = { it.name }) { model ->
+      items(items = sortedImportedModels, key = { it.name }) { model ->
         Box {
           ModelItem(
             model = model,

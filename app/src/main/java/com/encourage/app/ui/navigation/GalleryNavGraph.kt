@@ -16,10 +16,15 @@
 
 package com.encourage.app.ui.navigation
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
@@ -30,12 +35,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -61,10 +62,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -73,6 +75,7 @@ import androidx.navigation.navArgument
 import com.encourage.app.GalleryEvent
 import com.encourage.app.customtasks.common.CustomTaskData
 import com.encourage.app.customtasks.common.CustomTaskDataForBuiltinTask
+import com.encourage.app.data.BuiltInTaskId
 import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.data.Task
 import com.encourage.app.data.isLegacyTasks
@@ -81,24 +84,25 @@ import com.encourage.app.ui.benchmark.BenchmarkScreen
 import com.encourage.app.ui.common.ErrorDialog
 import com.encourage.app.ui.common.ModelPageAppBar
 import com.encourage.app.ui.common.chat.ModelDownloadStatusInfoPanel
-import com.encourage.app.ui.home.HomeScreen
 import com.encourage.app.ui.home.PromoScreenGm4
 import com.encourage.app.ui.modelmanager.GlobalModelManager
+import com.encourage.app.ui.modelmanager.ModelHubScreen
 import com.encourage.app.ui.modelmanager.ModelInitializationStatusType
 import com.encourage.app.ui.modelmanager.ModelManager
 import com.encourage.app.ui.modelmanager.ModelManagerViewModel
 import com.encourage.app.ui.notifications.NotificationsScreen
+import com.encourage.app.ui.system.SystemScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val TAG = "AGGalleryNavGraph"
-private const val ROUTE_HOMESCREEN = "homepage"
 private const val ROUTE_MODEL_LIST = "model_list"
 private const val ROUTE_MODEL = "route_model"
 private const val ROUTE_BENCHMARK = "benchmark"
 private const val ROUTE_MODEL_MANAGER = "model_manager"
 private const val ROUTE_NOTIFICATIONS = "notifications"
+private const val PROMO_ID = "gm4"
 private const val ENTER_ANIMATION_DURATION_MS = 500
 private val ENTER_ANIMATION_EASING = EaseOutExpo
 private const val ENTER_ANIMATION_DELAY_MS = 100
@@ -146,7 +150,13 @@ private fun AnimatedContentTransitionScope<*>.slideDownExit(): ExitTransition {
   )
 }
 
-/** Navigation routes. */
+/**
+ * 应用导航宿主。
+ *
+ * 顶层为微信式底部 5 Tab（对话 / 功能 / 实验 / 模型 / 系统），仅顶层路由显示底栏；
+ * 进入二级页（`model_list` / `route_model/{taskId}/{modelName}` / `benchmark/{modelName}` /
+ * `model_manager` / `notifications`）时隐藏底栏。Tab 之间互不堆栈，各 Tab 保留自身返回栈状态。
+ */
 @Composable
 fun GalleryNavHost(
   navController: NavHostController,
@@ -154,11 +164,38 @@ fun GalleryNavHost(
   modelManagerViewModel: ModelManagerViewModel,
 ) {
   val lifecycleOwner = LocalLifecycleOwner.current
-  var showModelManager by remember { mutableStateOf(false) }
+  val context = LocalContext.current
   var pickedTask by remember { mutableStateOf<Task?>(null) }
-  var enableHomeScreenAnimation by remember { mutableStateOf(true) }
   var enableModelListAnimation by remember { mutableStateOf(true) }
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
+
+  // 首次启动品牌引导页（保留原有行为：仅未看过时展示一次）。
+  val hasViewedPromo = remember {
+    modelManagerViewModel.dataStoreRepository.hasViewedPromo(promoId = PROMO_ID)
+  }
+  var promoDismissed by remember { mutableStateOf(false) }
+
+  // 通知运行时权限（Android 13+）：去首页化后，把原先挂在首页的主动申请逻辑上移到导航层，
+  // 保证「任务中心 / 定时通知」仍能拿到权限。
+  val notificationPermissionLauncher =
+    rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+      /* 权限结果无需额外处理 */
+    }
+  LaunchedEffect(Unit) {
+    try {
+      delay(2000)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (
+          ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+          notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+      }
+    } catch (e: Exception) {
+      Log.w(TAG, "Failed to request notification permission.", e)
+    }
+  }
 
   // Track whether app is in foreground.
   DisposableEffect(lifecycleOwner) {
@@ -183,99 +220,284 @@ fun GalleryNavHost(
     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
   }
 
-  NavHost(
-    navController = navController,
-    startDestination = ROUTE_HOMESCREEN,
-    enterTransition = { EnterTransition.None },
-    exitTransition = { ExitTransition.None },
-  ) {
-    // Home screen.
-    composable(route = ROUTE_HOMESCREEN) {
-      // Create a state to trigger PromoScreen fade in animation.
-      val promoId = "gm4"
-      Box(modifier = modifier.fillMaxSize()) {
-        var promoDismissed by remember { mutableStateOf(false) }
+  // 底部 Tab 切换：微信式——Tab 间互不堆栈，各 Tab 保留自身返回栈状态。
+  val onTabSelected: (BottomTab) -> Unit = { tab ->
+    try {
+      navController.navigate(tab.route) {
+        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to switch to tab '${tab.route}'.", e)
+    }
+  }
 
-        val homeScreenContent: @Composable () -> Unit = {
-          HomeScreen(
+  // 打开某个能力的「模型选择列表」（复用既有 model_list 流程）。
+  val openTaskModelList: (Task) -> Unit = { task ->
+    try {
+      pickedTask = task
+      enableModelListAnimation = true
+      navController.navigate(ROUTE_MODEL_LIST)
+      firebaseAnalytics?.logEvent(
+        GalleryEvent.CAPABILITY_SELECT.id,
+        Bundle().apply { putString("capability_name", task.id) },
+      )
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to open model list for task '${task.id}'.", e)
+    }
+  }
+
+  // 顶层对话 Tab 内能力选择器 -> 其它任务的对话页（复用当前模型）。
+  val navigateToTaskConversationFromTab: (Task) -> Unit = { targetTask ->
+    val modelName = modelManagerViewModel.getSelectedModel()?.name
+    if (modelName.isNullOrEmpty()) {
+      // 兜底：模型尚未就绪时不做跳转，避免拼出非法路由。
+      Log.w(TAG, "No selected model; ignoring navigation to task '${targetTask.id}'.")
+    } else {
+      try {
+        navController.navigate("$ROUTE_MODEL/${targetTask.id}/$modelName")
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to navigate to conversation for task '${targetTask.id}'.", e)
+      }
+    }
+  }
+
+  Box(modifier = modifier.fillMaxSize()) {
+    NavHost(
+      navController = navController,
+      startDestination = AppRoutes.TAB_CHAT,
+      enterTransition = { EnterTransition.None },
+      exitTransition = { ExitTransition.None },
+    ) {
+      // Tab 1：对话（AI Chat）。
+      composable(route = AppRoutes.TAB_CHAT) {
+        TopLevelTabScaffold(currentRoute = AppRoutes.TAB_CHAT, onTabSelected = onTabSelected) {
+          TaskTabScreen(
+            taskId = BuiltInTaskId.LLM_CHAT,
             modelManagerViewModel = modelManagerViewModel,
-            enableAnimation = enableHomeScreenAnimation,
-            navigateToTaskScreen = { task ->
-              pickedTask = task
-              enableModelListAnimation = true
-              navController.navigate(ROUTE_MODEL_LIST)
-              firebaseAnalytics?.logEvent(
-                GalleryEvent.CAPABILITY_SELECT.id,
-                Bundle().apply { putString("capability_name", task.id) },
-              )
-            },
-            onModelsClicked = { navController.navigate(ROUTE_MODEL_MANAGER) },
-            onNotificationsClicked = { navController.navigate(ROUTE_NOTIFICATIONS) },
-            gm4 = false,
+            onNavigateToModelsTab = { onTabSelected(BottomTab.MODELS) },
+            onNavigateToTask = navigateToTaskConversationFromTab,
           )
         }
+      }
 
-        // Show home page directly if promo has been viewed.
-        if (modelManagerViewModel.dataStoreRepository.hasViewedPromo(promoId = promoId)) {
-          homeScreenContent()
+      // Tab 2：功能（Agent Skills）。
+      composable(route = AppRoutes.TAB_AGENT) {
+        TopLevelTabScaffold(currentRoute = AppRoutes.TAB_AGENT, onTabSelected = onTabSelected) {
+          TaskTabScreen(
+            taskId = BuiltInTaskId.LLM_AGENT_CHAT,
+            modelManagerViewModel = modelManagerViewModel,
+            onNavigateToModelsTab = { onTabSelected(BottomTab.MODELS) },
+            onNavigateToTask = navigateToTaskConversationFromTab,
+          )
         }
-        // If the promo has not been viewed, show promo screen first.
-        else {
-          AnimatedContent(
-            targetState = promoDismissed,
-            label = "PromoToHome",
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-          ) { dismissed ->
-            if (dismissed) {
-              homeScreenContent()
+      }
+
+      // Tab 3：实验（Prompt Lab）。
+      composable(route = AppRoutes.TAB_LAB) {
+        TopLevelTabScaffold(currentRoute = AppRoutes.TAB_LAB, onTabSelected = onTabSelected) {
+          TaskTabScreen(
+            taskId = BuiltInTaskId.LLM_PROMPT_LAB,
+            modelManagerViewModel = modelManagerViewModel,
+            onNavigateToModelsTab = { onTabSelected(BottomTab.MODELS) },
+            onNavigateToTask = navigateToTaskConversationFromTab,
+          )
+        }
+      }
+
+      // Tab 4：模型（5 项能力 + 模型下载与导入）。
+      composable(route = AppRoutes.TAB_MODELS) {
+        TopLevelTabScaffold(currentRoute = AppRoutes.TAB_MODELS, onTabSelected = onTabSelected) {
+          ModelHubScreen(
+            modelManagerViewModel = modelManagerViewModel,
+            onTaskSelected = openTaskModelList,
+            onModelsClicked = { navController.navigate(ROUTE_MODEL_MANAGER) },
+          )
+        }
+      }
+
+      // Tab 5：系统（帮助中心 / 设置 / 通知 / 任务中心 / 文件管理）。
+      composable(route = AppRoutes.TAB_SYSTEM) {
+        TopLevelTabScaffold(currentRoute = AppRoutes.TAB_SYSTEM, onTabSelected = onTabSelected) {
+          SystemScreen(
+            modelManagerViewModel = modelManagerViewModel,
+            onNotificationsClicked = { navController.navigate(ROUTE_NOTIFICATIONS) },
+          )
+        }
+      }
+
+      // 二级页：按任务选择模型（隐藏底栏）。
+      composable(
+        route = ROUTE_MODEL_LIST,
+        enterTransition = {
+          if (AppRoutes.isTopLevelRoute(initialState.destination.route)) {
+            slideEnter()
+          } else {
+            EnterTransition.None
+          }
+        },
+        exitTransition = {
+          if (AppRoutes.isTopLevelRoute(targetState.destination.route)) {
+            slideExit()
+          } else {
+            ExitTransition.None
+          }
+        },
+      ) {
+        val task = pickedTask
+        if (task == null) {
+          // 兜底：未选中任务时不应进入此页，记录日志并返回上一级，避免空白页。
+          Log.e(TAG, "model_list opened without a picked task; navigating up.")
+          LaunchedEffect(Unit) { navController.navigateUp() }
+        } else {
+          ModelManager(
+            viewModel = modelManagerViewModel,
+            task = task,
+            enableAnimation = enableModelListAnimation,
+            onModelClicked = { model ->
+              navController.navigate("$ROUTE_MODEL/${task.id}/${model.name}")
+            },
+            onBenchmarkClicked = { model ->
+              firebaseAnalytics?.logEvent(
+                GalleryEvent.CAPABILITY_SELECT.id,
+                Bundle().apply { putString("capability_name", "benchmark_${model.name}") },
+              )
+              navController.navigate("$ROUTE_BENCHMARK/${model.name}")
+            },
+            navigateUp = {
+              enableModelListAnimation = false
+              navController.navigateUp()
+            },
+          )
+        }
+      }
+
+      // 二级页：具体任务的对话界面（隐藏底栏）。
+      composable(
+        route = "$ROUTE_MODEL/{taskId}/{modelName}?query={query}",
+        arguments =
+          listOf(
+            navArgument("taskId") { type = NavType.StringType },
+            navArgument("modelName") { type = NavType.StringType },
+            navArgument("query") {
+              type = NavType.StringType
+              nullable = true
+              defaultValue = null
+            },
+          ),
+        enterTransition = { slideEnter() },
+        exitTransition = { slideExit() },
+      ) { backStackEntry ->
+        val modelName = backStackEntry.arguments?.getString("modelName") ?: ""
+        val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+        val queryParam = backStackEntry.arguments?.getString("query")
+        val scope = rememberCoroutineScope()
+        val context = LocalContext.current
+
+        modelManagerViewModel.getModelByName(name = modelName)?.let { initialModel ->
+          LaunchedEffect(modelName) { modelManagerViewModel.selectModel(initialModel) }
+
+          val customTask = modelManagerViewModel.getCustomTaskByTaskId(id = taskId)
+          if (customTask != null) {
+            if (isLegacyTasks(customTask.task.id)) {
+              customTask.MainScreen(
+                data =
+                  CustomTaskDataForBuiltinTask(
+                    modelManagerViewModel = modelManagerViewModel,
+                    onNavUp = {
+                      enableModelListAnimation = false
+                      navController.navigateUp()
+                    },
+                    initialQuery = queryParam,
+                    // 【N6 统一入口】能力选择器点击后导航到对应任务的对话页，复用当前模型。
+                    onNavigateToTask = { targetTask ->
+                      navController.navigate("$ROUTE_MODEL/${targetTask.id}/$modelName") {
+                        popUpTo(AppRoutes.TAB_CHAT) { inclusive = false }
+                      }
+                    },
+                  )
+              )
             } else {
-              var startAnimation by remember { mutableStateOf(false) }
-              LaunchedEffect(Unit) {
-                delay(0L)
-                startAnimation = true
-              }
-              AnimatedVisibility(
-                visible = startAnimation,
-                enter = scaleIn(initialScale = 1.05f, animationSpec = tween(durationMillis = 1000)),
-              ) {
-                PromoScreenGm4(
-                  onDismiss = {
-                    modelManagerViewModel.dataStoreRepository.addViewedPromoId(promoId = promoId)
-                    promoDismissed = true
+              var disableAppBarControls by remember { mutableStateOf(false) }
+              var hideTopBar by remember { mutableStateOf(false) }
+              var customNavigateUpCallback by remember { mutableStateOf<(() -> Unit)?>(null) }
+              CustomTaskScreen(
+                task = customTask.task,
+                modelManagerViewModel = modelManagerViewModel,
+                onNavigateUp = {
+                  if (customNavigateUpCallback != null) {
+                    customNavigateUpCallback?.invoke()
+                  } else {
+                    enableModelListAnimation = false
+                    navController.navigateUp()
+
+                    // clean up all models.
+                    for (curModel in customTask.task.models) {
+                      val instanceToCleanUp = curModel.instance
+                      scope.launch(Dispatchers.Default) {
+                        modelManagerViewModel.cleanupModel(
+                          context = context,
+                          task = customTask.task,
+                          model = curModel,
+                          instanceToCleanUp = instanceToCleanUp,
+                        )
+                      }
+                    }
                   }
+                },
+                disableAppBarControls = disableAppBarControls,
+                hideTopBar = hideTopBar,
+                useThemeColor = customTask.task.useThemeColor,
+              ) { bottomPadding ->
+                customTask.MainScreen(
+                  data =
+                    CustomTaskData(
+                      modelManagerViewModel = modelManagerViewModel,
+                      bottomPadding = bottomPadding,
+                      setAppBarControlsDisabled = { disableAppBarControls = it },
+                      setTopBarVisible = { hideTopBar = !it },
+                      setCustomNavigateUpCallback = { customNavigateUpCallback = it },
+                    )
                 )
               }
             }
           }
         }
       }
-    }
 
-    // Model list.
-    composable(
-      route = ROUTE_MODEL_LIST,
-      enterTransition = {
-        if (initialState.destination.route == ROUTE_HOMESCREEN) {
-          slideEnter()
-        } else {
-          EnterTransition.None
-        }
-      },
-      exitTransition = {
-        if (targetState.destination.route == ROUTE_HOMESCREEN) {
-          slideExit()
-        } else {
-          ExitTransition.None
-        }
-      },
-    ) {
-      pickedTask?.let {
-        ModelManager(
+      // 二级页：全局模型管理器（隐藏底栏）。
+      composable(
+        route = ROUTE_MODEL_MANAGER,
+        enterTransition = {
+          if (
+            initialState.destination.route?.startsWith(ROUTE_BENCHMARK) == true ||
+              initialState.destination.route?.startsWith(ROUTE_MODEL) == true
+          ) {
+            null
+          } else {
+            slideUpEnter()
+          }
+        },
+        exitTransition = {
+          if (
+            targetState.destination.route?.startsWith(ROUTE_BENCHMARK) == true ||
+              targetState.destination.route?.startsWith(ROUTE_MODEL) == true
+          ) {
+            null
+          } else {
+            slideDownExit()
+          }
+        },
+      ) { backStackEntry ->
+        GlobalModelManager(
           viewModel = modelManagerViewModel,
-          task = it,
-          enableAnimation = enableModelListAnimation,
-          onModelClicked = { model ->
-            navController.navigate("$ROUTE_MODEL/${it.id}/${model.name}")
+          navigateUp = {
+            enableModelListAnimation = false
+            navController.navigateUp()
+          },
+          onModelSelected = { task, model ->
+            navController.navigate("$ROUTE_MODEL/${task.id}/${model.name}")
           },
           onBenchmarkClicked = { model ->
             firebaseAnalytics?.logEvent(
@@ -284,178 +506,48 @@ fun GalleryNavHost(
             )
             navController.navigate("$ROUTE_BENCHMARK/${model.name}")
           },
-          navigateUp = {
-            enableHomeScreenAnimation = false
-            navController.navigateUp()
-          },
         )
       }
-    }
 
-    // Model page.
-    composable(
-      route = "$ROUTE_MODEL/{taskId}/{modelName}?query={query}",
-      arguments =
-        listOf(
-          navArgument("taskId") { type = NavType.StringType },
-          navArgument("modelName") { type = NavType.StringType },
-          navArgument("query") {
-            type = NavType.StringType
-            nullable = true
-            defaultValue = null
-          },
-        ),
-      enterTransition = { slideEnter() },
-      exitTransition = { slideExit() },
-    ) { backStackEntry ->
-      val modelName = backStackEntry.arguments?.getString("modelName") ?: ""
-      val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
-      val queryParam = backStackEntry.arguments?.getString("query")
-      val scope = rememberCoroutineScope()
-      val context = LocalContext.current
-
-      modelManagerViewModel.getModelByName(name = modelName)?.let { initialModel ->
-        LaunchedEffect(modelName) { modelManagerViewModel.selectModel(initialModel) }
-
-        val customTask = modelManagerViewModel.getCustomTaskByTaskId(id = taskId)
-        if (customTask != null) {
-          if (isLegacyTasks(customTask.task.id)) {
-            customTask.MainScreen(
-              data =
-                CustomTaskDataForBuiltinTask(
-                  modelManagerViewModel = modelManagerViewModel,
-                  onNavUp = {
-                    enableModelListAnimation = false
-                    navController.navigateUp()
-                  },
-                  initialQuery = queryParam,
-                  // 【N6 统一入口】能力选择器点击后导航到对应任务的对话页，复用当前模型。
-                  onNavigateToTask = { targetTask ->
-                    navController.navigate("$ROUTE_MODEL/${targetTask.id}/$modelName") {
-                      popUpTo(ROUTE_HOMESCREEN) { inclusive = false }
-                    }
-                  },
-                )
-            )
-          } else {
-            var disableAppBarControls by remember { mutableStateOf(false) }
-            var hideTopBar by remember { mutableStateOf(false) }
-            var customNavigateUpCallback by remember { mutableStateOf<(() -> Unit)?>(null) }
-            CustomTaskScreen(
-              task = customTask.task,
-              modelManagerViewModel = modelManagerViewModel,
-              onNavigateUp = {
-                if (customNavigateUpCallback != null) {
-                  customNavigateUpCallback?.invoke()
-                } else {
-                  enableModelListAnimation = false
-                  navController.navigateUp()
-
-                  // clean up all models.
-                  for (curModel in customTask.task.models) {
-                    val instanceToCleanUp = curModel.instance
-                    scope.launch(Dispatchers.Default) {
-                      modelManagerViewModel.cleanupModel(
-                        context = context,
-                        task = customTask.task,
-                        model = curModel,
-                        instanceToCleanUp = instanceToCleanUp,
-                      )
-                    }
-                  }
-                }
-              },
-              disableAppBarControls = disableAppBarControls,
-              hideTopBar = hideTopBar,
-              useThemeColor = customTask.task.useThemeColor,
-            ) { bottomPadding ->
-              customTask.MainScreen(
-                data =
-                  CustomTaskData(
-                    modelManagerViewModel = modelManagerViewModel,
-                    bottomPadding = bottomPadding,
-                    setAppBarControlsDisabled = { disableAppBarControls = it },
-                    setTopBarVisible = { hideTopBar = !it },
-                    setCustomNavigateUpCallback = { customNavigateUpCallback = it },
-                  )
-              )
-            }
-          }
-        }
+      // 二级页：通知（隐藏底栏）。
+      composable(
+        route = ROUTE_NOTIFICATIONS,
+        enterTransition = { slideUpEnter() },
+        exitTransition = { slideDownExit() },
+      ) {
+        NotificationsScreen(navigateUp = { navController.navigateUp() })
       }
-    }
 
-    // Global model manager page.
-    composable(
-      route = ROUTE_MODEL_MANAGER,
-      enterTransition = {
-        if (
-          initialState.destination.route?.startsWith(ROUTE_BENCHMARK) == true ||
-            initialState.destination.route?.startsWith(ROUTE_MODEL) == true
-        ) {
-          null
-        } else {
-          slideUpEnter()
-        }
-      },
-      exitTransition = {
-        if (
-          targetState.destination.route?.startsWith(ROUTE_BENCHMARK) == true ||
-            targetState.destination.route?.startsWith(ROUTE_MODEL) == true
-        ) {
-          null
-        } else {
-          slideDownExit()
-        }
-      },
-    ) { backStackEntry ->
-      GlobalModelManager(
-        viewModel = modelManagerViewModel,
-        navigateUp = {
-          enableHomeScreenAnimation = false
-          navController.navigateUp()
-        },
-        onModelSelected = { task, model ->
-          navController.navigate("$ROUTE_MODEL/${task.id}/${model.name}")
-        },
-        onBenchmarkClicked = { model ->
-          firebaseAnalytics?.logEvent(
-            GalleryEvent.CAPABILITY_SELECT.id,
-            Bundle().apply { putString("capability_name", "benchmark_${model.name}") },
+      // 二级页：跑分（隐藏底栏）。
+      composable(
+        route = "$ROUTE_BENCHMARK/{modelName}",
+        arguments = listOf(navArgument("modelName") { type = NavType.StringType }),
+        enterTransition = { slideEnter() },
+        exitTransition = { slideExit() },
+      ) { backStackEntry ->
+        val modelName = backStackEntry.arguments?.getString("modelName") ?: ""
+
+        modelManagerViewModel.getModelByName(name = modelName)?.let { model ->
+          BenchmarkScreen(
+            initialModel = model,
+            modelManagerViewModel = modelManagerViewModel,
+            onBackClicked = {
+              enableModelListAnimation = false
+              navController.navigateUp()
+            },
           )
-          navController.navigate("$ROUTE_BENCHMARK/${model.name}")
-        },
-      )
-    }
-
-    // Notifications page.
-    composable(
-      route = ROUTE_NOTIFICATIONS,
-      enterTransition = { slideUpEnter() },
-      exitTransition = { slideDownExit() },
-    ) {
-      NotificationsScreen(navigateUp = { navController.navigateUp() })
-    }
-
-    // Benchmark creation page.
-    composable(
-      route = "$ROUTE_BENCHMARK/{modelName}",
-      arguments = listOf(navArgument("modelName") { type = NavType.StringType }),
-      enterTransition = { slideEnter() },
-      exitTransition = { slideExit() },
-    ) { backStackEntry ->
-      val modelName = backStackEntry.arguments?.getString("modelName") ?: ""
-
-      modelManagerViewModel.getModelByName(name = modelName)?.let { model ->
-        BenchmarkScreen(
-          initialModel = model,
-          modelManagerViewModel = modelManagerViewModel,
-          onBackClicked = {
-            enableModelListAnimation = false
-            navController.navigateUp()
-          },
-        )
+        }
       }
+    }
+
+    // 首次启动品牌引导页覆盖层（画在 NavHost 之上，铺满整屏）。
+    if (!promoDismissed && !hasViewedPromo) {
+      PromoScreenGm4(
+        onDismiss = {
+          modelManagerViewModel.dataStoreRepository.addViewedPromoId(promoId = PROMO_ID)
+          promoDismissed = true
+        }
+      )
     }
   }
 
