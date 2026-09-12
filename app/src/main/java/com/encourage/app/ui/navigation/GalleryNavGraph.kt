@@ -45,6 +45,8 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -57,6 +59,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -88,6 +91,8 @@ import com.encourage.app.data.conversation.ConversationType
 import com.encourage.app.data.isLegacyTasks
 import com.encourage.app.firebaseAnalytics
 import com.encourage.app.ui.benchmark.BenchmarkScreen
+import com.encourage.app.ui.common.EmptyState
+import com.encourage.app.ui.common.EmptyStateButtonConfig
 import com.encourage.app.ui.common.ErrorDialog
 import com.encourage.app.ui.common.ModelPageAppBar
 import com.encourage.app.ui.common.chat.ModelDownloadStatusInfoPanel
@@ -268,16 +273,22 @@ fun GalleryNavHost(
     } ?: targetTask.models.firstOrNull()
   }
 
-  // 【T03】统一「进入会话」入口（T04 只需改这一处）：带 profileId 与 type。
-  // 说明：taskId 用记录自身的 profile.taskId（识图=llm_ask_image、语音=llm_ask_audio、
-  // Agent=llm_agent_chat），保证 T03 独立可用；T04 再统一收敛为 llm_chat。
+  // 【T03/T04】统一「进入会话」入口：带上 profileId 与 type。
+  // 【T04】识图 / 语音 / 对话统一收敛到 llm_chat（通过 type 区分输入能力）；
+  // Agent 记录仍走原生 llm_agent_chat（依赖 Skills / MCP，不能收敛为普通对话）。
   val openProfile: (ConversationProfile) -> Unit = { profile ->
     if (profile.modelName.isBlank()) {
       Log.w(TAG, "Profile '${profile.id}' has blank model; navigation ignored.")
     } else {
+      val routeTaskId =
+        if (profile.type == ConversationType.AGENT) {
+          profile.taskId.ifBlank { BuiltInTaskId.LLM_AGENT_CHAT }
+        } else {
+          BuiltInTaskId.LLM_CHAT
+        }
       try {
         navController.navigate(
-          "$ROUTE_MODEL/${profile.taskId}/${profile.modelName}" +
+          "$ROUTE_MODEL/$routeTaskId/${profile.modelName}" +
             "?profileId=${profile.id}&type=${profile.type.name}"
         )
       } catch (e: Exception) {
@@ -343,21 +354,6 @@ fun GalleryNavHost(
     }
   }
 
-  // 顶层对话 Tab 内能力选择器 -> 其它任务的对话页（复用当前模型）。
-  val navigateToTaskConversationFromTab: (Task) -> Unit = { targetTask ->
-    val modelName = modelManagerViewModel.getSelectedModel()?.name
-    if (modelName.isNullOrEmpty()) {
-      // 兜底：模型尚未就绪时不做跳转，避免拼出非法路由。
-      Log.w(TAG, "No selected model; ignoring navigation to task '${targetTask.id}'.")
-    } else {
-      try {
-        navController.navigate("$ROUTE_MODEL/${targetTask.id}/$modelName")
-      } catch (e: Exception) {
-        Log.e(TAG, "Failed to navigate to conversation for task '${targetTask.id}'.", e)
-      }
-    }
-  }
-
   Box(modifier = modifier.fillMaxSize()) {
     NavHost(
       navController = navController,
@@ -396,7 +392,6 @@ fun GalleryNavHost(
             taskId = BuiltInTaskId.LLM_PROMPT_LAB,
             modelManagerViewModel = modelManagerViewModel,
             onNavigateToModelsTab = { onTabSelected(BottomTab.MODELS) },
-            onNavigateToTask = navigateToTaskConversationFromTab,
           )
         }
       }
@@ -504,7 +499,23 @@ fun GalleryNavHost(
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
 
-        modelManagerViewModel.getModelByName(name = modelName)?.let { initialModel ->
+        val initialModel = modelManagerViewModel.getModelByName(name = modelName)
+        if (initialModel == null) {
+          // 【T04】入口模型缺失（未下载 / 记录指向的模型已删）时给出空态，绝不白屏。
+          Log.w(TAG, "Model '$modelName' not found for route_model; showing fallback empty state.")
+          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            EmptyState(
+              icon = Icons.Rounded.Download,
+              titleResId = R.string.conversation_profile_model_missing,
+              descriptionResId = R.string.bottom_nav_no_model_title,
+              buttonConfig =
+                EmptyStateButtonConfig(
+                  buttonLabelResId = R.string.bottom_nav_no_model_action,
+                  onButtonClick = { onTabSelected(BottomTab.MODELS) },
+                ),
+            )
+          }
+        } else {
           LaunchedEffect(modelName) { modelManagerViewModel.selectModel(initialModel) }
 
           val customTask = modelManagerViewModel.getCustomTaskByTaskId(id = taskId)
@@ -519,12 +530,6 @@ fun GalleryNavHost(
                       navController.navigateUp()
                     },
                     initialQuery = queryParam,
-                    // 【N6 统一入口】能力选择器点击后导航到对应的对话页，复用当前模型。
-                    onNavigateToTask = { targetTask ->
-                      navController.navigate("$ROUTE_MODEL/${targetTask.id}/$modelName") {
-                        popUpTo(AppRoutes.TAB_CHAT) { inclusive = false }
-                      }
-                    },
                     // 【T03】透传记录绑定参数给会话页（T04 消费）。
                     profileId = profileId,
                     conversationType = conversationType,

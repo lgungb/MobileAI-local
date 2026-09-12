@@ -22,6 +22,7 @@ import com.encourage.app.agent.AgentRuntimeExecutor
 import com.encourage.app.data.SystemPromptRepository
 import com.encourage.app.data.api.ApiProviderRepository
 import com.encourage.app.data.api.RemoteOpenAICompatProvider
+import com.encourage.app.data.conversation.ConversationProfileRepository
 import com.encourage.app.proto.UserData
 import com.encourage.app.ui.llmchat.LlmChatViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,6 +35,9 @@ import javax.inject.Inject
  * 这样 Agent 对话在设置里打开云端 API 后同样走远端模型。
  * 注意 Agent 场景依赖本地工具执行能力，云端模型不一定能正确产出工具调用，
  * 这一版不做区分，交由用户自己判断。
+ *
+ * 【T04】新增透传 [ConversationProfileRepository]，使 Agent 会话也支持记录级提示词绑定与
+ * saveSession 的 profileId 归属。
  */
 @HiltViewModel
 class AgentChatViewModel
@@ -44,6 +48,7 @@ constructor(
   @AgentChatExecutor runtimeExecutor: AgentRuntimeExecutor,
   apiProviderRepository: ApiProviderRepository,
   remoteProvider: RemoteOpenAICompatProvider,
+  conversationProfileRepository: ConversationProfileRepository,
 ) :
 LlmChatViewModel(
   systemPromptRepository,
@@ -51,4 +56,5 @@ LlmChatViewModel(
   runtimeExecutor,
   apiProviderRepository,
   remoteProvider,
+  conversationProfileRepository,
 )

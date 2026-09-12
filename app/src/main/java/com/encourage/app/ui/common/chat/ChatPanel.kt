@@ -52,7 +52,6 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
@@ -65,7 +64,6 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -168,11 +166,6 @@ fun ChatPanel(
   emptyStateComposable: @Composable (Model) -> Unit = {},
   // 【M1】批量删除：回调参数为待删除的消息下标（升序），由调用方从 ViewModel 中移除。
   onDeleteMessages: (List<Int>) -> Unit = {},
-  /**
-   * 【N6 统一入口】能力选择器回调：在输入区上方显示能力 Chip 栏，
-   * 用户点击后导航到对应任务对话页（复用当前模型）。为 null 时不显示。
-   */
-  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
@@ -890,43 +883,11 @@ fun ChatPanel(
       val modelNotSupportAudioMsg = stringResource(R.string.model_not_support_audio_message)
       val imageLimitIgnoredMsg = stringResource(R.string.image_limit_ignored_message)
 
-      // 【N6 统一入口】能力选择器：放在输入区上方（参考豆包手机版布局），
-      // 用户可在对话页快速切换到其他能力（复用当前模型）。
-      // 仅当外部传入 onNavigateToTask 回调时显示。
+      // 【T04】输入区上方的能力选择器已删除（收敛到统一对话界面）。
+      // 保留外层 Column 与其内的 MessageInputText，仅移除能力 Chip 栏。
       Column(
         modifier = Modifier.fillMaxWidth(),
       ) {
-        if (onNavigateToTask != null) {
-          val allTasks = modelManagerUiState.tasks
-          val capabilityTasks =
-            remember(allTasks) {
-              listOfNotNull(
-                allTasks.find { it.id == BuiltInTaskId.LLM_CHAT },
-                allTasks.find { it.id == BuiltInTaskId.LLM_ASK_IMAGE },
-                allTasks.find { it.id == BuiltInTaskId.LLM_ASK_AUDIO },
-                allTasks.find { it.id == BuiltInTaskId.LLM_PROMPT_LAB },
-                allTasks.find { it.id == BuiltInTaskId.LLM_AGENT_CHAT },
-              )
-            }
-          if (capabilityTasks.size > 1) {
-            Row(
-              modifier =
-                Modifier.fillMaxWidth()
-                  .horizontalScroll(rememberScrollState())
-                  .padding(horizontal = 12.dp, vertical = 4.dp),
-              horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-              for (capTask in capabilityTasks) {
-                FilterChip(
-                  selected = capTask.id == task.id,
-                  onClick = { onNavigateToTask(capTask) },
-                  label = { Text(capTask.label, maxLines = 1, style = MaterialTheme.typography.labelSmall) },
-                )
-              }
-            }
-          }
-        }
-
       MessageInputText(
         task = task,
         modelManagerViewModel = modelManagerViewModel,

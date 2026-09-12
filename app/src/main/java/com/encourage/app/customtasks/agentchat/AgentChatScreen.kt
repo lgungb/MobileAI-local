@@ -133,7 +133,6 @@ fun AgentChatScreen(
   skillManagerViewModel: SkillManagerViewModel = hiltViewModel(),
   mcpManagerViewModel: McpManagerViewModel = hiltViewModel(),
   initialQuery: String? = null,
-  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
@@ -174,6 +173,8 @@ fun AgentChatScreen(
 
   LaunchedEffect(task) { viewModel.loadSystemPrompt(task) }
   val uiSystemPrompt by viewModel.uiSystemPrompt.collectAsState()
+  // 【T04】当前会话绑定的「特调记录」id，透传给统一对话界面供 saveSession 使用。
+  val boundProfileId by viewModel.boundProfileId.collectAsState()
 
   // Collect UI states from view models. Ensure launched effect is triggered when the UI state is
   // updated.
@@ -241,7 +242,7 @@ fun AgentChatScreen(
     skillCount = skillCount,
     mcpCount = mcpCount,
     mcpToolsCount = mcpToolsCount,
-    onNavigateToTask = onNavigateToTask,
+    boundProfileId = boundProfileId.orEmpty(),
     onFirstToken = { model ->
       scope.launch(Dispatchers.Main) {
         updateProgressPanel(viewModel = viewModel, model = model, agentTools = agentTools)

@@ -304,10 +304,10 @@ fun ChatView(
   onInferenceSourceChange: (InferenceSource) -> Unit = {},
   generationStats: GenerationStats? = null,
   /**
-   * 【N6 统一入口】能力选择器回调：用户在对话页点击能力 Chip 时触发，
-   * 导航到对应任务的对话页（复用当前模型）。为空时不显示能力选择器。
+   * 【T04】当前会话绑定的「特调记录」id（空串表示未绑定）。
+   * 透传给 saveSession，使会话与记录（含记录级提示词）真正绑定。
    */
-  onNavigateToTask: ((Task) -> Unit)? = null,
+  boundProfileId: String = "",
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
@@ -415,6 +415,7 @@ fun ChatView(
         messages = currentMessages,
         originalModel = selectedModel.name,
         taskId = task.id,
+        profileId = boundProfileId,
         context = context,
       )
     }
@@ -654,7 +655,6 @@ fun ChatView(
                       skillCount = skillCount,
                       mcpCount = mcpCount,
                       navigateUp = navigateUp,
-                      onNavigateToTask = onNavigateToTask,
                       onSendMessage = { model, messages -> onSendMessage(model, messages) },
                       onRunAgainClicked = onRunAgainClicked,
                       onBenchmarkClicked = onBenchmarkClicked,

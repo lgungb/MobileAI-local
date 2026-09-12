@@ -40,6 +40,8 @@ import com.encourage.app.data.Model
 import com.encourage.app.data.SystemPromptRepository
 import com.encourage.app.data.Task
 import com.encourage.app.data.awaitInitialization
+import com.encourage.app.data.conversation.ConversationProfile
+import com.encourage.app.data.conversation.ConversationProfileRepository
 import com.encourage.app.proto.UserData
 import com.encourage.app.tools.ToolAction
 import com.encourage.app.ui.common.chat.ChatMessageAudioClip
@@ -132,6 +134,8 @@ open class LlmChatViewModelBase(
   val runtimeExecutor: AgentRuntimeExecutor,
   private val apiProviderRepository: ApiProviderRepository? = null,
   private val remoteProvider: RemoteOpenAICompatProvider? = null,
+  // 【T04】特调记录仓库：绑定记录后，编辑系统提示词写入记录而非全局默认值；可空便于测试。
+  private val conversationProfileRepository: ConversationProfileRepository? = null,
 ) : ChatViewModel(userDataDataStore) {
   private val _uiSystemPrompt = MutableStateFlow("")
   val uiSystemPrompt = _uiSystemPrompt.asStateFlow()
@@ -200,6 +204,36 @@ open class LlmChatViewModelBase(
     }
   }
 
+  /** 【T04】当前会话绑定的「特调记录」id；null / 空串表示未绑定（走 task 全局提示词）。 */
+  private val _boundProfileId = MutableStateFlow<String?>(null)
+  val boundProfileId = _boundProfileId.asStateFlow()
+
+  /**
+   * 【T04】绑定一条「特调记录」：记录级提示词优先，为空时回退 task 全局默认。
+   *
+   * @param profile 待绑定的记录；为 null 时等价于加载 task 全局默认提示词。
+   * @param task 当前任务（用于回退全局默认值）。
+   */
+  fun bindProfile(profile: ConversationProfile?, task: Task) {
+    if (profile == null) {
+      _boundProfileId.value = null
+      loadSystemPrompt(task)
+      return
+    }
+    _boundProfileId.value = profile.id
+    viewModelScope.launch {
+      try {
+        val prompt =
+          profile.systemPrompt.ifBlank {
+            SystemPromptHelper.getEffectiveSystemPrompt(systemPromptRepository, task)
+          }
+        _uiSystemPrompt.value = prompt
+      } catch (e: Exception) {
+        Log.e(TAG, "bindProfile failed for id=${profile.id}", e)
+      }
+    }
+  }
+
   /**
    * Applies a system prompt change to the given [task] and [model].
    *
@@ -220,7 +254,17 @@ open class LlmChatViewModelBase(
   ) {
     _uiSystemPrompt.value = newPrompt
     viewModelScope.launch {
-      systemPromptRepository?.updateSystemPrompt(task.id, newPrompt)
+      // 【T04】绑定了记录时写入记录级提示词；否则回退写入全局默认值（旧键降级为默认）。
+      val profileId = _boundProfileId.value
+      try {
+        if (!profileId.isNullOrBlank() && conversationProfileRepository != null) {
+          conversationProfileRepository.updateSystemPrompt(profileId, newPrompt)
+        } else {
+          systemPromptRepository?.updateSystemPrompt(task.id, newPrompt)
+        }
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to persist system prompt for task=${task.id}", e)
+      }
       resetSession(
         task = task,
         model = model,
@@ -732,6 +776,7 @@ constructor(
   @AiChatExecutor runtimeExecutor: AgentRuntimeExecutor,
   apiProviderRepository: ApiProviderRepository,
   remoteProvider: RemoteOpenAICompatProvider,
+  conversationProfileRepository: ConversationProfileRepository,
 ) :
 LlmChatViewModelBase(
   systemPromptRepository,
@@ -740,6 +785,7 @@ LlmChatViewModelBase(
   runtimeExecutor,
   apiProviderRepository,
   remoteProvider,
+  conversationProfileRepository,
 )
 
 @HiltViewModel
@@ -751,6 +797,7 @@ constructor(
   @AiChatExecutor runtimeExecutor: AgentRuntimeExecutor,
   apiProviderRepository: ApiProviderRepository,
   remoteProvider: RemoteOpenAICompatProvider,
+  conversationProfileRepository: ConversationProfileRepository,
 ) :
 LlmChatViewModelBase(
   systemPromptRepository,
@@ -759,6 +806,7 @@ LlmChatViewModelBase(
   runtimeExecutor,
   apiProviderRepository,
   remoteProvider,
+  conversationProfileRepository,
 )
 
 @HiltViewModel
@@ -770,6 +818,7 @@ constructor(
   @AiChatExecutor runtimeExecutor: AgentRuntimeExecutor,
   apiProviderRepository: ApiProviderRepository,
   remoteProvider: RemoteOpenAICompatProvider,
+  conversationProfileRepository: ConversationProfileRepository,
 ) :
 LlmChatViewModelBase(
   systemPromptRepository,
@@ -778,4 +827,5 @@ LlmChatViewModelBase(
   runtimeExecutor,
   apiProviderRepository,
   remoteProvider,
+  conversationProfileRepository,
 )

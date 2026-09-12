@@ -17,6 +17,7 @@
 package com.encourage.app.ui.llmchat
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import com.encourage.app.data.Category
 import com.encourage.app.data.Model
 import com.encourage.app.data.RuntimeType
 import com.encourage.app.data.Task
+import com.encourage.app.data.conversation.ConversationProfileRepository
 import com.encourage.app.ui.theme.emptyStateContent
 import com.encourage.app.ui.theme.emptyStateTitle
 import com.google.ai.edge.litertlm.Contents
@@ -63,6 +65,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+private const val TAG = "AGLlmChatTask"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // AI Chat.
 
@@ -71,6 +75,7 @@ class LlmChatTask
 constructor(
   @ApplicationContext private val context: Context,
   @AiChatExecutor private val executor: AgentRuntimeExecutor,
+  private val conversationProfileRepository: ConversationProfileRepository,
 ) : CustomTask {
   override val task: Task by lazy {
     Task(
@@ -121,7 +126,27 @@ constructor(
   override fun MainScreen(data: Any) {
     val myData = data as CustomTaskDataForBuiltinTask
     val viewModel: LlmChatViewModel = hiltViewModel()
-    LaunchedEffect(task) { viewModel.loadSystemPrompt(task) }
+    val boundProfileId by viewModel.boundProfileId.collectAsState()
+    // 【T04】按记录绑定提示词：有 profileId 用记录级提示词，否则回退 task 全局默认。
+    LaunchedEffect(task, myData.profileId) {
+      val profile =
+        myData.profileId?.takeIf { it.isNotBlank() }?.let { id ->
+          try {
+            conversationProfileRepository.getProfile(id = id)
+          } catch (e: Exception) {
+            Log.e(TAG, "getProfile failed for id=$id", e)
+            null
+          }
+        }
+      if (profile == null && !myData.conversationType.isNullOrBlank()) {
+        Log.w(
+          TAG,
+          "conversationType=${myData.conversationType} without profileId; " +
+            "fallback to task default prompt.",
+        )
+      }
+      viewModel.bindProfile(profile, task)
+    }
     val uiSystemPrompt by viewModel.uiSystemPrompt.collectAsState()
     val systemPromptUpdatedMessage = stringResource(R.string.system_prompt_updated)
     LlmChatScreen(
@@ -132,7 +157,7 @@ constructor(
       curSystemPrompt = uiSystemPrompt,
       showImagePicker = true,
       showAudioPicker = true,
-      onNavigateToTask = myData.onNavigateToTask,
+      boundProfileId = boundProfileId.orEmpty(),
       onSystemPromptChanged = { newPrompt ->
         val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
         viewModel.applySystemPromptChange(
@@ -200,14 +225,16 @@ internal object LlmChatTaskModule {
   fun provideTask(
     @ApplicationContext context: Context,
     @AiChatExecutor executor: AgentRuntimeExecutor,
+    conversationProfileRepository: ConversationProfileRepository,
   ): CustomTask {
-    return LlmChatTask(context, executor)
+    return LlmChatTask(context, executor, conversationProfileRepository)
   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Ask image.
 
+// 【T04】已收敛到统一对话界面（llm_chat + ConversationType）。保留仅为兼容旧深链与历史记录。
 class LlmAskImageTask
 @Inject
 constructor(
@@ -272,7 +299,6 @@ constructor(
       viewModel = viewModel,
       allowEditingSystemPrompt = true,
       curSystemPrompt = uiSystemPrompt,
-      onNavigateToTask = myData.onNavigateToTask,
       onSystemPromptChanged = { newPrompt ->
         val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
         viewModel.applySystemPromptChange(
@@ -302,6 +328,7 @@ internal object LlmAskImageModule {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Ask audio.
 
+// 【T04】已收敛到统一对话界面（llm_chat + ConversationType）。保留仅为兼容旧深链与历史记录。
 class LlmAskAudioTask
 @Inject
 constructor(
@@ -366,7 +393,6 @@ constructor(
       viewModel = viewModel,
       allowEditingSystemPrompt = true,
       curSystemPrompt = uiSystemPrompt,
-      onNavigateToTask = myData.onNavigateToTask,
       onSystemPromptChanged = { newPrompt ->
         val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
         viewModel.applySystemPromptChange(

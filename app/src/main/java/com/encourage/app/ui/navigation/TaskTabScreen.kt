@@ -38,7 +38,6 @@ import com.encourage.app.R
 import com.encourage.app.customtasks.common.CustomTaskData
 import com.encourage.app.customtasks.common.CustomTaskDataForBuiltinTask
 import com.encourage.app.data.ModelDownloadStatusType
-import com.encourage.app.data.Task
 import com.encourage.app.data.isLegacyTasks
 import com.encourage.app.ui.common.EmptyState
 import com.encourage.app.ui.common.EmptyStateButtonConfig
@@ -56,14 +55,12 @@ private const val TAG = "AGTaskTabScreen"
  * @param taskId 目标任务 id（如 `llm_chat`）。
  * @param modelManagerViewModel 模型管理 ViewModel。
  * @param onNavigateToModelsTab 跳转到「模型」Tab 的回调。
- * @param onNavigateToTask 对话页内能力选择器跳转到其它任务对话页的回调。
  */
 @Composable
 fun TaskTabScreen(
   taskId: String,
   modelManagerViewModel: ModelManagerViewModel,
   onNavigateToModelsTab: () -> Unit,
-  onNavigateToTask: (Task) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val uiState by modelManagerViewModel.uiState.collectAsState()
@@ -146,7 +143,6 @@ fun TaskTabScreen(
             // 顶层 Tab 是导航栈的根，没有「返回上一级」的目标：仅记录日志，避免误返回。
             onNavUp = { Log.d(TAG, "navigateUp ignored on top-level tab '$taskId'.") },
             initialQuery = null,
-            onNavigateToTask = onNavigateToTask,
           )
       )
     } else {

@@ -188,6 +188,28 @@ class ConversationProfileRepository(
     }
   }
 
+  /**
+   * 更新某条记录的角色设定（记录级提示词）。
+   *
+   * 【T04】统一对话界面下，编辑系统提示词优先写入这条「特调记录」；
+   * 未绑定记录时才回退写入全局 `system_prompt_$taskId`（作为默认值）。
+   * 空 id 直接忽略，避免误写。
+   */
+  suspend fun updateSystemPrompt(id: String, systemPrompt: String) {
+    if (id.isBlank()) return
+    userDataDataStore.updateData { userData ->
+      val updated =
+        userData.conversationProfilesList.map { proto ->
+          if (proto.id == id) proto.toBuilder().setSystemPrompt(systemPrompt).build() else proto
+        }
+      userData
+        .toBuilder()
+        .clearConversationProfiles()
+        .addAllConversationProfiles(updated)
+        .build()
+    }
+  }
+
   /** 更新「最后使用时间」为当前时刻（进入会话时调用，用于列表倒序）。 */
   suspend fun touchLastUsed(id: String) {
     val now = System.currentTimeMillis()

@@ -86,7 +86,8 @@ fun LlmChatScreen(
   skillCount: Int = 0,
   mcpCount: Int = 0,
   mcpToolsCount: Int = 0,
-  onNavigateToTask: ((Task) -> Unit)? = null,
+  // 【T04】当前会话绑定的「特调记录」id（空串表示未绑定），透传给 ChatView 供 saveSession 使用。
+  boundProfileId: String = "",
 ) {
   ChatViewWrapper(
     viewModel = viewModel,
@@ -113,10 +114,11 @@ fun LlmChatScreen(
     showImagePicker = showImagePicker,
     showAudioPicker = showAudioPicker,
     getActiveSkills = getActiveSkills,
-    onNavigateToTask = onNavigateToTask,
+    boundProfileId = boundProfileId,
   )
 }
 
+// 【T04】已收敛到统一对话界面（llm_chat + ConversationType）。保留仅为兼容旧深链与历史记录。
 @Composable
 fun LlmAskImageScreen(
   modelManagerViewModel: ModelManagerViewModel,
@@ -126,7 +128,6 @@ fun LlmAskImageScreen(
   allowEditingSystemPrompt: Boolean = false,
   curSystemPrompt: String = "",
   onSystemPromptChanged: (String) -> Unit = {},
-  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   ChatViewWrapper(
     viewModel = viewModel,
@@ -139,7 +140,6 @@ fun LlmAskImageScreen(
     onSystemPromptChanged = onSystemPromptChanged,
     showImagePicker = true,
     showAudioPicker = false,
-    onNavigateToTask = onNavigateToTask,
     emptyStateComposable = { model ->
       Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -167,6 +167,7 @@ fun LlmAskImageScreen(
   )
 }
 
+// 【T04】已收敛到统一对话界面（llm_chat + ConversationType）。保留仅为兼容旧深链与历史记录。
 @Composable
 fun LlmAskAudioScreen(
   modelManagerViewModel: ModelManagerViewModel,
@@ -176,7 +177,6 @@ fun LlmAskAudioScreen(
   allowEditingSystemPrompt: Boolean = false,
   curSystemPrompt: String = "",
   onSystemPromptChanged: (String) -> Unit = {},
-  onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   ChatViewWrapper(
     viewModel = viewModel,
@@ -189,7 +189,6 @@ fun LlmAskAudioScreen(
     onSystemPromptChanged = onSystemPromptChanged,
     showImagePicker = false,
     showAudioPicker = true,
-    onNavigateToTask = onNavigateToTask,
     emptyStateComposable = {
       Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -238,8 +237,8 @@ fun ChatViewWrapper(
   skillCount: Int = 0,
   mcpCount: Int = 0,
   mcpToolsCount: Int = 0,
-  /** 【N6 统一入口】能力选择器导航回调，透传给 ChatView。 */
-  onNavigateToTask: ((Task) -> Unit)? = null,
+  // 【T04】当前会话绑定的「特调记录」id，透传给 ChatView 供 saveSession 使用。
+  boundProfileId: String = "",
 ) {
   val context = LocalContext.current
   // 【防闪退】任务尚未装配完成（首次运行 / 冷启动竞态，uiState.tasks 还未就绪）时，
@@ -388,6 +387,6 @@ fun ChatViewWrapper(
     inferenceSource = inferenceSource,
     onInferenceSourceChange = { viewModel.setInferenceSource(it) },
     generationStats = generationStats,
-    onNavigateToTask = onNavigateToTask,
+    boundProfileId = boundProfileId,
   )
 }
