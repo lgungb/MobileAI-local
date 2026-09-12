@@ -242,7 +242,14 @@ fun ChatViewWrapper(
   onNavigateToTask: ((Task) -> Unit)? = null,
 ) {
   val context = LocalContext.current
-  val task = modelManagerViewModel.getTaskById(id = taskId)!!
+  // 【防闪退】任务尚未装配完成（首次运行 / 冷启动竞态，uiState.tasks 还未就绪）时，
+  // 原实现用 `!!` 强解包会抛 NPE 直接崩溃。这里短路返回一个空占位，绝不崩溃。
+  val task = modelManagerViewModel.getTaskById(id = taskId)
+  if (task == null) {
+    Log.e(TAG, "ChatViewWrapper: task '$taskId' is not available yet; showing placeholder.")
+    Box(modifier = modifier.fillMaxSize())
+    return
+  }
   val scope = rememberCoroutineScope()
 
   // 【M2-5b】当前生效的云端配置。非空时在聊天页顶部显示来源提示条，

@@ -37,6 +37,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -44,6 +45,7 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -95,6 +97,7 @@ import com.encourage.app.ui.system.SystemScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "AGGalleryNavGraph"
 private const val ROUTE_MODEL_LIST = "model_list"
@@ -170,10 +173,22 @@ fun GalleryNavHost(
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
 
   // 首次启动品牌引导页（保留原有行为：仅未看过时展示一次）。
-  val hasViewedPromo = remember {
-    modelManagerViewModel.dataStoreRepository.hasViewedPromo(promoId = PROMO_ID)
-  }
+  // 【健壮性】hasViewedPromo() 内部是 runBlocking 读取 DataStore，直接放在 remember 里会阻塞
+  // 主线程、拖慢冷启动。改为异步读取：读取完成前用与启动页一致的背景遮罩盖住，避免闪屏。
+  var promoViewed by remember { mutableStateOf<Boolean?>(null) }
   var promoDismissed by remember { mutableStateOf(false) }
+  LaunchedEffect(Unit) {
+    promoViewed =
+      try {
+        withContext(Dispatchers.IO) {
+          modelManagerViewModel.dataStoreRepository.hasViewedPromo(promoId = PROMO_ID)
+        }
+      } catch (e: Exception) {
+        // 读取失败时按「已看过」处理，避免遮罩/引导页卡住导致无法进入应用。
+        Log.e(TAG, "Failed to read promo viewed state.", e)
+        true
+      }
+  }
 
   // 通知运行时权限（Android 13+）：去首页化后，把原先挂在首页的主动申请逻辑上移到导航层，
   // 保证「任务中心 / 定时通知」仍能拿到权限。
@@ -436,12 +451,21 @@ fun GalleryNavHost(
                     for (curModel in customTask.task.models) {
                       val instanceToCleanUp = curModel.instance
                       scope.launch(Dispatchers.Default) {
-                        modelManagerViewModel.cleanupModel(
-                          context = context,
-                          task = customTask.task,
-                          model = curModel,
-                          instanceToCleanUp = instanceToCleanUp,
-                        )
+                        try {
+                          modelManagerViewModel.cleanupModel(
+                            context = context,
+                            task = customTask.task,
+                            model = curModel,
+                            instanceToCleanUp = instanceToCleanUp,
+                          )
+                        } catch (e: Exception) {
+                          // 【健壮性】清理失败不应中断返回流程或导致崩溃，仅记录日志。
+                          Log.e(
+                            TAG,
+                            "Failed to clean up model '${curModel.name}' for task '${customTask.task.id}'.",
+                            e,
+                          )
+                        }
                       }
                     }
                   }
@@ -541,13 +565,31 @@ fun GalleryNavHost(
     }
 
     // 首次启动品牌引导页覆盖层（画在 NavHost 之上，铺满整屏）。
-    if (!promoDismissed && !hasViewedPromo) {
-      PromoScreenGm4(
-        onDismiss = {
-          modelManagerViewModel.dataStoreRepository.addViewedPromoId(promoId = PROMO_ID)
-          promoDismissed = true
+    when (promoViewed) {
+      null -> {
+        // 【健壮性】引导页状态尚未从 DataStore 读回：用与启动页一致的背景色遮罩盖住，
+        // 避免「先闪一下主界面、再弹出引导页」的闪屏。
+        Box(
+          modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        )
+      }
+      false -> {
+        if (!promoDismissed) {
+          PromoScreenGm4(
+            onDismiss = {
+              try {
+                modelManagerViewModel.dataStoreRepository.addViewedPromoId(promoId = PROMO_ID)
+              } catch (e: Exception) {
+                Log.e(TAG, "Failed to persist promo viewed state.", e)
+              }
+              promoDismissed = true
+            }
+          )
         }
-      )
+      }
+      true -> {
+        // 已看过引导页：无需展示。
+      }
     }
   }
 
@@ -680,12 +722,17 @@ private fun CustomTaskScreen(
             scope.launch(Dispatchers.Default) {
               // Clean up prev model.
               if (prevModel.name != newSelectedModel.name) {
-                modelManagerViewModel.cleanupModel(
-                  context = context,
-                  task = task,
-                  model = prevModel,
-                  instanceToCleanUp = instanceToCleanUp,
-                )
+                try {
+                  modelManagerViewModel.cleanupModel(
+                    context = context,
+                    task = task,
+                    model = prevModel,
+                    instanceToCleanUp = instanceToCleanUp,
+                  )
+                } catch (e: Exception) {
+                  // 【健壮性】切换模型时的清理失败不应影响新模型的选择，仅记录日志。
+                  Log.e(TAG, "Failed to clean up previous model '${prevModel.name}'.", e)
+                }
               }
 
               // Update selected model.

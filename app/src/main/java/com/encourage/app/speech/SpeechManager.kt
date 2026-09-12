@@ -61,6 +61,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
+import java.util.concurrent.ConcurrentLinkedQueue
 
 private const val TAG = "AGSpeechManager"
 
@@ -132,6 +133,32 @@ class SpeechManager(
   /** 初始化完成前缓存的待朗读文本（只保留最后一次，避免堆积）。 */
   private var pendingText: String? = null
 
+  // ===== 【Bug2 修复】长文本「分句 + 队列续读」所需的状态 =====
+
+  /**
+   * 待朗读的分片队列（滑动窗口）。
+   *
+   * 系统 TTS 一次性朗读超长文本会被引擎截断（或不发声），因此把长文本按标点切成若干片：
+   * 先播第一片，其余入队，在 [UtteranceProgressListener.onDone] 回调里续读下一片，
+   * 从而把整段长对话连续读完。用并发队列保证跨线程安全。
+   */
+  private val speakQueue = ConcurrentLinkedQueue<String>()
+
+  /**
+   * 当前正在朗读的分片 utteranceId。
+   *
+   * 仅当 [UtteranceProgressListener.onDone] / onError 收到的 id 与它一致时，才推进队列，
+   * 避免 stop() 或新请求之后残留的旧回调误触发续读。
+   */
+  @Volatile private var currentUtteranceId: String? = null
+
+  /** 分片自增序号，保证每个 utteranceId 唯一（同一毫秒内多次分片也不会重复）。 */
+  @Volatile private var chunkSeq: Int = 0
+
+  /** 本轮朗读的语速 / 音调，供各分片续读时复用（避免只有第一片生效）。 */
+  private var pendingRate: Float? = null
+  private var pendingPitch: Float? = null
+
   /** 当前是否正在朗读，供界面切换「朗读/停止」图标。 */
   @Volatile var isSpeaking: Boolean = false
     private set
@@ -155,13 +182,27 @@ class SpeechManager(
 
             override fun onDone(utteranceId: String?) {
               Log.d(TAG, "Utterance done: id=$utteranceId")
-              isSpeaking = false
+              // 【Bug2】续读下一片：仅当完成的是「当前正在朗读的分片」时才推进队列，
+              // 避免 stop()/新请求后残留的旧回调误触发续读。队列为空才算整段读完。
+              if (utteranceId != null && utteranceId == currentUtteranceId) {
+                val next = speakQueue.poll()
+                val engine = tts
+                if (next != null && engine != null && ready) {
+                  speakChunk(next, engine)
+                } else {
+                  currentUtteranceId = null
+                  isSpeaking = false
+                }
+              }
             }
 
             /** 新版本回调（带错误码），用于定位引擎侧合成/播放失败原因。 */
             override fun onError(utteranceId: String?, errorCode: Int) {
               Log.e(TAG, "Utterance error: id=$utteranceId, code=$errorCode (${utteranceErrorText(errorCode)})")
               isSpeaking = false
+              currentUtteranceId = null
+              // 【Bug2】分片出错时清空队列，避免报错后仍继续续读后面的分片。
+              speakQueue.clear()
               updateLastError(buildString {
                 append("朗读失败：")
                 append(utteranceErrorText(errorCode))
@@ -175,6 +216,8 @@ class SpeechManager(
             override fun onError(utteranceId: String?) {
               Log.e(TAG, "Utterance error (legacy): id=$utteranceId")
               isSpeaking = false
+              currentUtteranceId = null
+              speakQueue.clear()
             }
           }
         )
@@ -289,8 +332,6 @@ class SpeechManager(
 
   private fun doSpeak(text: String, rate: Float? = null, pitch: Float? = null) {
     stop()
-    // 系统 TTS 对超长文本支持不佳，这里做保守截断。
-    val content = if (text.length > MAX_SPEAK_LENGTH) text.take(MAX_SPEAK_LENGTH) else text
     val engine = tts
     if (engine == null) {
       // 静默失败点 ③：引擎实例为空（构造失败或已 shutdown）。
@@ -300,22 +341,85 @@ class SpeechManager(
       return
     }
     // 应用语速 / 音调（仅当显式传入时覆盖；默认不动引擎原值，避免设置残留）。
+    // 记录本轮语速/音调，供各分片续读时复用，保证整段朗读音色一致。
+    pendingRate = rate
+    pendingPitch = pitch
     if (rate != null) engine.setSpeechRate(rate.coerceIn(0.5f, 2.0f))
     if (pitch != null) engine.setPitch(pitch.coerceIn(0.5f, 2.0f))
-    val utteranceId = "encourage_tts_${System.currentTimeMillis()}"
+
+    // 【Bug2 修复】按标点把长文本切成若干片：先播第一片，其余入队，
+    // 由 onDone 回调续读下一片。不再「截断成固定长度」，
+    // 从根源上支持长对话连续读完整段文本。
+    val chunks = splitIntoChunks(text)
+    if (chunks.isEmpty()) return
+    speakQueue.clear()
+    for (i in 1 until chunks.size) {
+      speakQueue.add(chunks[i])
+    }
+    isSpeaking = true
+    speakChunk(chunks[0], engine)
+  }
+
+  /**
+   * 朗读单个分片（内部方法）。
+   *
+   * 朗读前记录 [currentUtteranceId]；[UtteranceProgressListener.onDone] 里据此判断
+   * 是否属于当前朗读并续读下一片。出错时清空队列并复位状态，避免卡住。
+   */
+  private fun speakChunk(content: String, engine: TextToSpeech) {
+    // 续读分片时按本轮记录重新应用语速/音调，避免引擎参数在多分片间被外部改动。
+    pendingRate?.let { engine.setSpeechRate(it.coerceIn(0.5f, 2.0f)) }
+    pendingPitch?.let { engine.setPitch(it.coerceIn(0.5f, 2.0f)) }
+    val utteranceId = "$UTTERANCE_ID_PREFIX${System.currentTimeMillis()}_${chunkSeq++}"
+    currentUtteranceId = utteranceId
     val result = engine.speak(content, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
     if (result == TextToSpeech.ERROR) {
       // 静默失败点 ④：speak() 返回 ERROR，例如引擎语言数据缺失 / 引擎被停用。
       Log.e(TAG, "TextToSpeech.speak() returned ERROR, utteranceId=$utteranceId, len=${content.length}")
       updateLastError("系统语音引擎调用失败（speak 返回 ERROR），请检查系统 TTS 语音数据是否已安装")
+      isSpeaking = false
+      currentUtteranceId = null
+      speakQueue.clear()
     } else {
       Log.i(
         TAG,
         "speak() dispatched: utteranceId=$utteranceId, len=${content.length}, " +
-          "rate=$rate, pitch=$pitch, engine=${engine.defaultEngine}",
+          "remaining=${speakQueue.size}, engine=${engine.defaultEngine}",
       )
       updateLastError(null)
     }
+  }
+
+  /**
+   * 把长文本按「句子结束符 + 最大分片长度」切分为若干片（【Bug2】核心）。
+   *
+   * - 句末标点（中英文）与换行作为自然断点，优先在句子边界切分，朗读更自然；
+   * - 单句仍然过长时按 [MAX_CHUNK_LENGTH] 强制切分，避免单次 speak 超长被引擎拒绝。
+   */
+  private fun splitIntoChunks(text: String): List<String> {
+    val chunks = mutableListOf<String>()
+    val builder = StringBuilder()
+    for (ch in text) {
+      builder.append(ch)
+      val isSentenceEnd =
+        ch == '。' ||
+          ch == '！' ||
+          ch == '？' ||
+          ch == '；' ||
+          ch == '.' ||
+          ch == '!' ||
+          ch == '?' ||
+          ch == ';' ||
+          ch == '\n'
+      if (isSentenceEnd || builder.length >= MAX_CHUNK_LENGTH) {
+        val chunk = builder.toString().trim()
+        if (chunk.isNotEmpty()) chunks.add(chunk)
+        builder.setLength(0)
+      }
+    }
+    val tail = builder.toString().trim()
+    if (tail.isNotEmpty()) chunks.add(tail)
+    return chunks
   }
 
   // ===== 【N6-A】可读错误码翻译工具：把 int 状态码翻译成能直接给人看的原因 =====
@@ -369,6 +473,9 @@ class SpeechManager(
 
   /** 停止当前朗读（系统引擎与离线引擎都停止）。 */
   fun stop() {
+    // 【Bug2】停止时一并清空分片队列与当前分片 id，避免停止后旧回调继续续读。
+    speakQueue.clear()
+    currentUtteranceId = null
     offlineTtsEngine?.stop()
     if (tts?.isSpeaking == true) {
       tts?.stop()
@@ -393,8 +500,14 @@ class SpeechManager(
   }
 
   companion object {
-    /** 单次朗读的最大字符数（系统 TTS 对超长文本支持不佳，保守截断）。 */
-    private const val MAX_SPEAK_LENGTH: Int = 3000
+    /**
+     * 单个朗读分片的最大字符数：一次 speak 过长会被系统引擎截断或拒绝，
+     * 这里保守切分（远小于引擎上限），配合分句续读实现长文本连续朗读。
+     */
+    private const val MAX_CHUNK_LENGTH: Int = 1000
+
+    /** 分片 utteranceId 前缀（与旧实现保持一致，便于日志检索）。 */
+    private const val UTTERANCE_ID_PREFIX: String = "encourage_tts_"
   }
 }
 

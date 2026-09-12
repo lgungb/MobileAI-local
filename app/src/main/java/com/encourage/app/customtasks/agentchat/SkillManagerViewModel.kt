@@ -128,6 +128,20 @@ class SkillManagerViewModel @Inject constructor(val skillManager: SkillManager) 
         }
       }
     }
+    // 【Bug3 修复】技能加载不能只依赖「模型初始化」这个副作用：
+    // 原实现只在 AgentChatTask.initializeModelFn 里调用 loadSkills()，而
+    // ModelManagerViewModel.initializeModel 在「模型已初始化」时会直接跳过整段初始化
+    // （见 initializeModel 的 skip 分支）——此时技能永远不会被加载，
+    // 导致「Agent Skills 技能不显示、无法调用」。
+    // 这里在 VM 创建时即主动触发一次加载（SkillManager.loadSkills 内部有 skillLoaded
+    // 幂等保护，重复调用不会重复解析），确保技能列表始终可用。
+    viewModelScope.launch {
+      try {
+        loadSkills()
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to load skills on init", e)
+      }
+    }
     loadSkillAllowlist()
   }
 

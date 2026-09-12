@@ -97,8 +97,19 @@ open class DefaultAgentRuntimeExecutor(
   ): Flow<AgentEvent> = callbackFlow {
     emitEvent(AgentEvent.LoopInitiated(request = request))
 
-    val session =
-      activeSession.get() ?: error("Model not initialized in DefaultAgentRuntimeExecutor")
+    // 【防闪退】执行器尚未激活会话（模型还没有为该执行器初始化完成）时，原实现用
+    // error(...) 抛出 IllegalStateException；该异常会冒泡到 generateResponse 的协程，
+    // 首次运行 / 冷启动时（用户在主线程完成初始化前就发送了消息）极易触发，直接导致应用崩溃。
+    // 这里改为下发一个 Error 事件，由上层 UI 友好提示，绝不崩溃。
+    val session = activeSession.get()
+    if (session == null) {
+      Log.e(TAG, "executeStream called before a session was initialized; emitting error event.")
+      emitEvent(
+        AgentEvent.Error("Model not initialized. Please wait for the model to finish loading.")
+      )
+      close()
+      return@callbackFlow
+    }
     val curModel = session.model
 
     toolDispatcher.setupExecutionContext(

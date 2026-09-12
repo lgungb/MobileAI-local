@@ -95,6 +95,7 @@ import com.encourage.app.data.Model
 import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.data.Task
 import com.encourage.app.firebaseAnalytics
+import com.encourage.app.ui.common.LocalIsTopLevelTab
 import com.encourage.app.ui.common.ModelPageAppBar
 import com.encourage.app.ui.common.copyBitmapToClipboard
 import com.encourage.app.ui.common.saveBitmapToMediaStore
@@ -448,7 +449,13 @@ fun ChatView(
   }
 
   // Handle system's edge swipe.
-  BackHandler {
+  //
+  // 顶层 Tab 场景（对话/功能）：本页是导航栈的根，返回键应交给系统/NavHost 处理
+  // （Tab1 退出 App、其它 Tab 回到起始 Tab），不能被这里的 BackHandler 吞掉，
+  // 否则既无法返回、又会误触发 handleNavigateUp() 去清理模型。
+  // 抽屉打开时仍需拦截返回以关闭抽屉。二级页保持原有行为不变。
+  val isTopLevelTab = LocalIsTopLevelTab.current
+  BackHandler(enabled = !isTopLevelTab || drawerState.isOpen) {
     val modelInitializationStatus =
       modelManagerUiState.modelInitializationStatus[selectedModel.name]
     val isModelInitializing =

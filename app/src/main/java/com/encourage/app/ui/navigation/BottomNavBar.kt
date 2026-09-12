@@ -32,10 +32,12 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.encourage.app.R
+import com.encourage.app.ui.common.LocalIsTopLevelTab
 
 /**
  * 顶层导航路由常量（微信式底部 5 Tab）。
@@ -132,7 +134,10 @@ fun TopLevelTabScaffold(
   content: @Composable () -> Unit,
 ) {
   Column(modifier = modifier.fillMaxSize()) {
-    Box(modifier = Modifier.weight(1f).fillMaxWidth()) { content() }
+    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+      // 告知内容区「当前处于顶层 Tab」：页面内部的 BackHandler 会据此让出系统返回键。
+      CompositionLocalProvider(LocalIsTopLevelTab provides true) { content() }
+    }
     BottomNavBar(currentRoute = currentRoute, onTabSelected = onTabSelected)
   }
 }

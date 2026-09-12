@@ -337,7 +337,7 @@ fun ModelList(
       }
 
       // List of models within a task.
-      items(items = models) { model ->
+      items(items = sortedModels) { model ->
         if (model.parentModelName.isNullOrEmpty()) {
           val expanded = modelItemExpandedStates.getOrDefault(model.name, null)
           ModelItem(

@@ -59,6 +59,7 @@ import com.google.ai.edge.litertlm.ExperimentalApi
 import com.google.ai.edge.litertlm.Message
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.SendChannel
@@ -242,7 +243,18 @@ open class LlmChatViewModelBase(
     allowThinking: Boolean = false,
   ) {
     val accelerator = model.getStringConfigValue(key = ConfigKeys.ACCELERATOR, defaultValue = "")
-    generationJob = viewModelScope.launch(Dispatchers.Default) {
+    // 【防闪退】为本轮生成协程挂一个异常兜底：本地执行器 / 流式渲染若抛出未捕获异常
+    // （例如首次运行初始化竞态：模型尚未就绪就发送消息），不再让异常冒泡导致应用崩溃
+    // （会落到全局崩溃展示页），而是复位状态并回调 onError，由界面友好提示。
+    val generationExceptionHandler =
+      CoroutineExceptionHandler { _, throwable ->
+        Log.e(TAG, "generateResponse failed with an uncaught exception.", throwable)
+        setPreparing(false)
+        setInProgress(false)
+        onError(throwable.message ?: "Generation failed.")
+      }
+    generationJob =
+      viewModelScope.launch(Dispatchers.Default + generationExceptionHandler) {
       setInProgress(true)
       setPreparing(true)
       // 【M7】新一轮开始前清空上一轮的统计，避免展示过期数据。

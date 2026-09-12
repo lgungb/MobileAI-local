@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -49,10 +51,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.core.os.bundleOf
 import com.encourage.app.GalleryEvent
+import com.encourage.app.R
 import com.encourage.app.data.BuiltInTaskId
 import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.firebaseAnalytics
+import com.encourage.app.ui.common.EmptyState
 import com.encourage.app.ui.common.ErrorDialog
+import com.encourage.app.ui.common.LocalIsTopLevelTab
 import com.encourage.app.ui.common.ModelPageAppBar
 import com.encourage.app.ui.common.chat.ModelDownloadStatusInfoPanel
 import com.encourage.app.ui.modelmanager.ModelInitializationStatusType
@@ -70,7 +75,19 @@ fun LlmSingleTurnScreen(
   modifier: Modifier = Modifier,
   viewModel: LlmSingleTurnViewModel = hiltViewModel(),
 ) {
-  val task = modelManagerViewModel.getTaskById(id = BuiltInTaskId.LLM_PROMPT_LAB)!!
+  // 【健壮性】去掉 `!!`：任务未就绪（模型清单尚未装配完成）时给出友好空态，绝不崩溃。
+  val task = modelManagerViewModel.getTaskById(id = BuiltInTaskId.LLM_PROMPT_LAB)
+  if (task == null) {
+    Log.e(TAG, "Task '${BuiltInTaskId.LLM_PROMPT_LAB}' not found; showing empty state.")
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      EmptyState(
+        icon = Icons.Rounded.Download,
+        titleResId = R.string.bottom_nav_task_unavailable_title,
+        descriptionResId = R.string.bottom_nav_task_unavailable_description,
+      )
+    }
+    return
+  }
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
   val uiState by viewModel.uiState.collectAsState()
   val selectedModel = modelManagerUiState.selectedModel
@@ -92,7 +109,11 @@ fun LlmSingleTurnScreen(
   }
 
   // Handle system's edge swipe.
-  BackHandler {
+  //
+  // 顶层 Tab（实验）场景：本页是导航栈根，返回键交给系统/NavHost 处理，避免被吞掉、
+  // 也避免误触发 handleNavigateUp() 去清理模型。二级页（route_model/...）行为保持不变。
+  val isTopLevelTab = LocalIsTopLevelTab.current
+  BackHandler(enabled = !isTopLevelTab) {
     val modelInitializationStatus =
       modelManagerUiState.modelInitializationStatus[selectedModel.name]
     val isModelInitializing =
