@@ -1,0 +1,85 @@
+%% ============================================================
+%% SeAI_Encourage · 会话列表改造 · 时序图
+%% ============================================================
+
+%% -------- 1. 从「模型」Tab 新建并进入（以识图为例）--------
+sequenceDiagram
+    actor U as 用户
+    participant MHub as ModelHubScreen
+    participant Nav as GalleryNavHost
+    participant Repo as ConversationProfileRepository
+    participant Store as UserData DataStore
+    participant MVM as ModelManagerViewModel
+    participant Chat as LlmChatScreen/ChatView
+
+    U->>MHub: 点击「识图 Ask Image」
+    MHub->>Nav: onTaskSelected(task, type=IMAGE)
+    Nav->>MVM: 取"已下载的第一个模型"（无则引导去模型 Tab）
+    MVM-->>Nav: model
+    Nav->>Repo: createProfile(task, model, type=IMAGE, prompt, configs)
+    Repo->>Store: updateData(追加 ConversationProfileProto)
+    Repo-->>Nav: ConversationProfile(id)
+    Nav->>Nav: navigate(route_model/llm_chat/{model}?profileId=id&type=IMAGE)
+    Nav->>Chat: 渲染统一对话界面(showImagePicker=true, showAudioPicker=true)
+    Chat->>MVM: selectModel(model); initializeModel()（已初始化则跳过）
+    Chat->>Repo: getProfile(id) 读取 systemPrompt/configValues
+    Chat-->>U: 全屏会话（隐藏底栏）
+
+%% -------- 2. 从列表点击进入 --------
+sequenceDiagram
+    actor U as 用户
+    participant List as ConversationListScreen
+    participant Repo as ConversationProfileRepository
+    participant Nav as GalleryNavHost
+    participant MVM as ModelManagerViewModel
+    participant Chat as ChatView
+    participant Store as UserData DataStore
+
+    U->>List: 点击某条记录
+    List->>Repo: getProfile(id)
+    Repo-->>List: profile
+    List->>Nav: navigate(route_model/{taskId}/{modelName}?profileId=id)
+    Nav->>MVM: getModelByName(profile.modelName)
+    alt 模型已初始化 且 采样参数相同
+        Nav->>Chat: 复用同一 runtime 实例（不重载）
+    else 采样参数不同 / 换了模型
+        Nav->>MVM: cleanupModel(prevModel) ; selectModel(new) ; initializeModel(new)
+    end
+    Chat->>Repo: bindProfile(id) -> resetSession(systemPrompt=profile.prompt)
+    Repo->>Store: touchLastUsed(id)
+    Chat-->>U: 全屏会话
+
+%% -------- 3. 修改提示词/参数 -> 另存为新记录 --------
+sequenceDiagram
+    actor U as 用户
+    participant Chat as ChatView
+    participant Dlg as SaveProfileDialog
+    participant Repo as ConversationProfileRepository
+    participant Store as UserData DataStore
+
+    U->>Chat: 修改提示词 / topK / temperature
+    Chat->>Dlg: 弹「保存为新的特调配置？」
+    U->>Dlg: 确认（可改别名）
+    Dlg->>Repo: createProfile(复制：新参数 + 新别名)
+    Repo->>Store: updateData
+    Chat->>Chat: resetSession(应用新配置)
+
+%% -------- 4. 删除记录（微信删好友逻辑）--------
+sequenceDiagram
+    actor U as 用户
+    participant List as ConversationListScreen
+    participant Dlg as 删除确认对话框
+    participant Repo as ConversationProfileRepository
+    participant CVM as ChatViewModel
+    participant Store as UserData DataStore
+    participant MVM as ModelManagerViewModel
+
+    U->>List: 左滑/长按删除
+    List->>Dlg: 二次确认
+    U->>Dlg: 确认
+    Dlg->>Repo: deleteProfile(id, context)
+    Repo->>CVM: deleteSessionsOfProfile(id, context)
+    CVM->>CVM: 删除 img_/audio_ 缓存文件
+    Repo->>Store: updateData(移除 profile + 其 sessions)
+    Note over Repo,MVM: 不立即释放模型实例<br/>仅当"删除模型文件"或低内存时才释放
+    Repo-->>List: profiles 刷新（该项消失）

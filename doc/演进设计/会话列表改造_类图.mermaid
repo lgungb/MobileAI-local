@@ -1,0 +1,106 @@
+classDiagram
+    %% ===== 领域模型（新增）=====
+    class ConversationProfile {
+        +String id
+        +String alias
+        +String taskId
+        +String modelName
+        +ConversationType type
+        +String systemPrompt
+        +Map~String,String~ configValues
+        +String agentId
+        +List~String~ skillIds
+        +long createdAtMs
+        +long lastUsedAtMs
+        +List~String~ sessionIds
+        +String lastMessagePreview
+    }
+    class ConversationType {
+        <<enumeration>>
+        CHAT
+        IMAGE
+        AUDIO
+        AGENT
+    }
+    ConversationProfile --> ConversationType
+
+    %% ===== 持久化层（proto）=====
+    class ConversationProfileProto
+    class ChatSessionProto {
+        +String sessionId
+        +String title
+        +long timestampMs
+        +String originalModel
+        +String taskId
+        +String profileId
+        +List~ChatMessageProto~ messages
+    }
+    class UserData {
+        +List~ConversationProfileProto~ conversationProfiles
+        +List~ChatSessionProto~ chatSessions
+        +Map~String,String~ secrets
+    }
+    UserData "1" o-- "*" ConversationProfileProto : conversation_profiles
+    UserData "1" o-- "*" ChatSessionProto : chat_sessions
+    ConversationProfileProto ..> ConversationProfile : map
+
+    %% ===== 仓库层 =====
+    class ConversationProfileRepository {
+        +StateFlow~List~ConversationProfile~~ profiles
+        +profilesOfType(type) StateFlow
+        +createProfile(task, model, type, prompt, configs) ConversationProfile
+        +updateProfile(profile)
+        +renameProfile(id, alias)
+        +deleteProfile(id, context)
+        +touchLastUsed(id)
+        +getProfile(id) ConversationProfile?
+    }
+    class ChatViewModel {
+        +saveSession(sessionId, messages, originalModel, taskId, profileId)
+        +deleteSession(sessionId, context)
+        +deleteSessionsOfProfile(profileId, context)
+    }
+    class SystemPromptRepository {
+        +updateSystemPrompt(taskId, prompt)
+        +getCustomSystemPrompt(taskId) Flow
+        +clearCustomSystemPrompt(taskId)
+    }
+    ConversationProfileRepository --> UserData : 读写
+    ConversationProfileRepository --> ChatViewModel : 级联删除会话
+
+    %% ===== ViewModel =====
+    class ConversationListViewModel {
+        +StateFlow~ConversationListUiState~ uiState
+        +onItemClicked(profileId)
+        +onDeleteProfile(profileId)
+        +newProfile(type) ConversationProfile
+    }
+    class ModelManagerViewModel {
+        +initializeModel(context, task, model)
+        +cleanupModel(context, task, model)
+        +selectModel(model)
+        +getModelByName(name) Model?
+        +cleanupAllModels(context)
+    }
+    class LlmChatViewModel {
+        +bindProfile(profileId)
+        +loadSystemPrompt(task)
+        +applySystemPromptChange(task, model, prompt, msg)
+        +resetSession(...)
+    }
+    ConversationListViewModel --> ConversationProfileRepository
+    ConversationListViewModel --> ModelManagerViewModel
+    LlmChatViewModel --> ConversationProfileRepository
+    LlmChatViewModel --> SystemPromptRepository
+    LlmChatViewModel --> ModelManagerViewModel
+
+    %% ===== UI =====
+    class ConversationListScreen
+    class ConversationListItem
+    class ChatView
+    class AgentChatScreen
+    ConversationListScreen --> ConversationListViewModel
+    ConversationListScreen ..> ConversationListItem
+    ChatView --> LlmChatViewModel
+    AgentChatScreen --> LlmChatViewModel
+    ChatView ..> ConversationProfile

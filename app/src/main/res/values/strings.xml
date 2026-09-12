@@ -1070,5 +1070,9 @@
   <string name="conversation_profile_model_missing" translatable="true" description="Label shown when the model referenced by a profile no longer exists.">Model missing</string>
   <string name="conversation_profile_model_not_downloaded" translatable="true" description="Label shown when the model referenced by a profile is not downloaded yet.">Model not downloaded</string>
   <string name="conversation_profile_delete_cd" translatable="true" description="Content description of the button that deletes a conversation profile.">Delete this conversation</string>
+  <string name="conversation_profile_unnamed" translatable="true" description="Fallback title shown when a conversation profile has no alias.">Untitled</string>
+  <string name="conversation_delete_action" translatable="true" description="Label revealed behind a conversation list item when swiping to delete.">Delete</string>
+  <string name="conversation_time_yesterday" translatable="true" description="Short label shown for a conversation last used yesterday.">Yesterday</string>
+  <string name="conversation_save_as_new_profile_alias_label" translatable="true" description="Label of the alias field inside the save-as-new-profile dialog.">Name</string>
 
 </resources>

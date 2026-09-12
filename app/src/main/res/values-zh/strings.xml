@@ -1070,5 +1070,9 @@
   <string name="conversation_profile_model_missing">模型缺失</string>
   <string name="conversation_profile_model_not_downloaded">模型未下载</string>
   <string name="conversation_profile_delete_cd">删除该会话记录</string>
+  <string name="conversation_profile_unnamed">未命名</string>
+  <string name="conversation_delete_action">删除</string>
+  <string name="conversation_time_yesterday">昨天</string>
+  <string name="conversation_save_as_new_profile_alias_label">名称</string>
 
 </resources>
