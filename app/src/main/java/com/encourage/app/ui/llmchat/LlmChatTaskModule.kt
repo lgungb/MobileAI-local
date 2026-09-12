@@ -145,7 +145,12 @@ constructor(
             "fallback to task default prompt.",
         )
       }
-      viewModel.bindProfile(profile, task)
+      // 【T05-②】传入当前模型，把记录里的采样参数（id→label 映射后）写入 model.configValues。
+      viewModel.bindProfile(
+        profile,
+        task,
+        myData.modelManagerViewModel.uiState.value.selectedModel,
+      )
     }
     val uiSystemPrompt by viewModel.uiSystemPrompt.collectAsState()
     val systemPromptUpdatedMessage = stringResource(R.string.system_prompt_updated)

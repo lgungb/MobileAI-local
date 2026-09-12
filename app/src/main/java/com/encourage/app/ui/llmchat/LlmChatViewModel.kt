@@ -35,6 +35,7 @@ import com.encourage.app.data.api.ApiProviderRepository
 import com.encourage.app.data.api.ChatRole
 import com.encourage.app.data.api.ChatTurn
 import com.encourage.app.data.api.RemoteOpenAICompatProvider
+import com.encourage.app.data.ConfigKey
 import com.encourage.app.data.ConfigKeys
 import com.encourage.app.data.Model
 import com.encourage.app.data.SystemPromptRepository
@@ -46,6 +47,7 @@ import com.encourage.app.proto.UserData
 import com.encourage.app.tools.ToolAction
 import com.encourage.app.ui.common.chat.ChatMessageAudioClip
 import com.encourage.app.ui.common.chat.ChatMessage
+import com.encourage.app.ui.common.chat.ChatMessageConfigValuesChange
 import com.encourage.app.ui.common.chat.ChatMessageError
 import com.encourage.app.ui.common.chat.ChatMessageImage
 import com.encourage.app.ui.common.chat.ChatMessageInfo
@@ -82,6 +84,38 @@ private const val TAG = "AGLlmChatViewModel"
 private const val REMOTE_ATTACHMENT_IMAGE_HINT = "[用户在此处发送了一张图片，当前无法查看其内容]"
 
 private const val REMOTE_ATTACHMENT_AUDIO_HINT = "[用户在此处发送了一段语音，当前无法查看其内容]"
+
+/**
+ * 【T05-②】本模块关心的「记录采样参数」键白名单。
+ *
+ * 【设计要点】运行时 `Model.getTypedConfigValue` 用 `key.label` 作键（如 `TopK`），
+ * 而 `ConversationProfile.configValues` 用 `key.id` 作键（如 `topk`）——
+ * 直接把记录的 map 塞进 `model.configValues` 会**静默失效**（读不到值且不报错）。
+ * 因此这里显式列出需要双向映射的键，用于 id ↔ label 转换。按需扩展即可。
+ */
+private val PROFILE_CONFIG_KEYS: List<ConfigKey> =
+  listOf(
+    ConfigKeys.MAX_TOKENS,
+    ConfigKeys.MAX_OUTPUT_TOKENS,
+    ConfigKeys.TOPK,
+    ConfigKeys.TOPP,
+    ConfigKeys.TEMPERATURE,
+    ConfigKeys.DEFAULT_MAX_TOKENS,
+    ConfigKeys.DEFAULT_TOPK,
+    ConfigKeys.DEFAULT_TOPP,
+    ConfigKeys.DEFAULT_TEMPERATURE,
+    ConfigKeys.ENABLE_THINKING,
+    ConfigKeys.ACCELERATOR,
+    ConfigKeys.VISION_ACCELERATOR,
+  )
+
+/** 【T05-②】记录键（id）→ 运行时键（label）。 */
+private val PROFILE_CONFIG_ID_TO_LABEL: Map<String, String> =
+  PROFILE_CONFIG_KEYS.associate { key -> key.id to key.label }
+
+/** 【T05-②】运行时键（label）→ 记录键（id），用于把模型参数写回记录。 */
+private val PROFILE_CONFIG_LABEL_TO_ID: Map<String, String> =
+  PROFILE_CONFIG_KEYS.associate { key -> key.label to key.id }
 
 /**
  * 【M7】推理来源选择。
@@ -210,17 +244,26 @@ open class LlmChatViewModelBase(
 
   /**
    * 【T04】绑定一条「特调记录」：记录级提示词优先，为空时回退 task 全局默认。
+   * 【T05-②】同时把记录里的采样参数写入 [model]（键从 [ConfigKey.id] 映射到 [ConfigKey.label]）。
    *
    * @param profile 待绑定的记录；为 null 时等价于加载 task 全局默认提示词。
    * @param task 当前任务（用于回退全局默认值）。
+   * @param model 当前模型；非空时应用记录级采样参数。
    */
-  fun bindProfile(profile: ConversationProfile?, task: Task) {
+  fun bindProfile(profile: ConversationProfile?, task: Task, model: Model? = null) {
     if (profile == null) {
       _boundProfileId.value = null
       loadSystemPrompt(task)
       return
     }
     _boundProfileId.value = profile.id
+    if (model != null) {
+      try {
+        applyProfileConfigValues(profile = profile, model = model)
+      } catch (e: Exception) {
+        Log.e(TAG, "applyProfileConfigValues failed for id=${profile.id}", e)
+      }
+    }
     viewModelScope.launch {
       try {
         val prompt =
@@ -230,6 +273,94 @@ open class LlmChatViewModelBase(
         _uiSystemPrompt.value = prompt
       } catch (e: Exception) {
         Log.e(TAG, "bindProfile failed for id=${profile.id}", e)
+      }
+    }
+  }
+
+  /**
+   * 【T05-②】把记录里的采样参数写入 [model]。
+   *
+   * 【设计要点】
+   * - 运行时键是 [ConfigKey.label]，记录里存的是 [ConfigKey.id]，必须显式映射；
+   * - 只写入 [model] 实际支持的配置键（存在于 `model.configValues`），其余丢弃并 `Log.w`；
+   * - 值按「当前值的运行时类型」转换；`toFloatOrNull()` / `toIntOrNull()` 失败则跳过该键并
+   *   `Log.w`，绝不强转导致崩溃；
+   * - 若模型已初始化，本次不生效、只提示「下次初始化生效」，**绝不**在此 cleanup 重建
+   *   ——那正好违背 T05-① 的模型保活目标。
+   */
+  private fun applyProfileConfigValues(profile: ConversationProfile, model: Model) {
+    if (profile.configValues.isEmpty()) return
+    val alreadyInitialized = model.instance != null
+    val updated = model.configValues.toMutableMap()
+    var changed = false
+    for ((keyId, rawValue) in profile.configValues) {
+      val label = PROFILE_CONFIG_ID_TO_LABEL[keyId]
+      if (label == null) {
+        Log.w(TAG, "Profile config key '$keyId' is not mapped; skipped.")
+        continue
+      }
+      if (!updated.containsKey(label)) {
+        Log.w(TAG, "Model '${model.name}' does not support config '$label'; skipped.")
+        continue
+      }
+      val converted = convertProfileValue(rawValue = rawValue, current = updated[label])
+      if (converted == null) {
+        Log.w(TAG, "Cannot convert profile config '$label' value '$rawValue'; skipped.")
+        continue
+      }
+      if (updated[label] != converted) {
+        updated[label] = converted
+        changed = true
+      }
+    }
+    if (!changed) return
+    val oldValues = model.configValues
+    model.configValues = updated
+    if (alreadyInitialized) {
+      Log.w(TAG, "Model '${model.name}' already initialized; profile configs apply next init.")
+      addMessage(model, ChatMessageConfigValuesChange(model, oldValues, updated))
+    }
+  }
+
+  /** 【T05-②】按当前值的运行时类型，把记录里的字符串值还原为 `model.configValues` 需要的类型。 */
+  private fun convertProfileValue(rawValue: String, current: Any?): Any? =
+    when (current) {
+      is Float -> rawValue.toFloatOrNull()
+      is Int -> rawValue.toIntOrNull()
+      is Double -> rawValue.toDoubleOrNull()
+      is Boolean -> rawValue.toBoolean()
+      is String -> rawValue
+      else -> null
+    }
+
+  /**
+   * 【T05-②】把 [model] 当前的采样参数快照为「记录格式」（key 用 [ConfigKey.id]，值字符串化）。
+   *
+   * 用于「另存为特调」与写回当前记录，保证 round-trip 一致。
+   */
+  fun profileConfigValuesOf(model: Model): Map<String, String> {
+    val result = mutableMapOf<String, String>()
+    for ((label, value) in model.configValues) {
+      val keyId = PROFILE_CONFIG_LABEL_TO_ID[label] ?: continue
+      result[keyId] = value.toString()
+    }
+    return result
+  }
+
+  /**
+   * 【T05-②】把 [model] 当前的采样参数写回已绑定的记录。
+   *
+   * 未绑定记录（或仓库不可用）时为空操作；异常仅记录日志，不影响界面。
+   */
+  fun persistConfigValuesToProfile(model: Model) {
+    val profileId = _boundProfileId.value
+    if (profileId.isNullOrBlank() || conversationProfileRepository == null) return
+    val values = profileConfigValuesOf(model)
+    viewModelScope.launch {
+      try {
+        conversationProfileRepository.updateConfigValues(profileId, values)
+      } catch (e: Exception) {
+        Log.e(TAG, "persistConfigValuesToProfile failed for id=$profileId", e)
       }
     }
   }

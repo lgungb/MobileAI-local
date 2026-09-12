@@ -210,6 +210,32 @@ class ConversationProfileRepository(
     }
   }
 
+  /**
+   * 更新某条记录的采样参数。
+   *
+   * 【T05-②】key 统一用 [com.encourage.app.data.ConfigKey.id]（如 `topk`），值为字符串化；
+   * 由会话页在参数变更时写回，保证重启后仍是用户改过的值。
+   * 空 id 直接忽略。
+   */
+  suspend fun updateConfigValues(id: String, values: Map<String, String>) {
+    if (id.isBlank()) return
+    userDataDataStore.updateData { userData ->
+      val updated =
+        userData.conversationProfilesList.map { proto ->
+          if (proto.id == id) {
+            proto.toBuilder().clearConfigValues().putAllConfigValues(values).build()
+          } else {
+            proto
+          }
+        }
+      userData
+        .toBuilder()
+        .clearConversationProfiles()
+        .addAllConversationProfiles(updated)
+        .build()
+    }
+  }
+
   /** 更新「最后使用时间」为当前时刻（进入会话时调用，用于列表倒序）。 */
   suspend fun touchLastUsed(id: String) {
     val now = System.currentTimeMillis()

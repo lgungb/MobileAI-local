@@ -104,6 +104,7 @@ import com.encourage.app.ui.modelmanager.ModelInitializationStatusType
 import com.encourage.app.ui.modelmanager.ModelManagerViewModel
 import com.encourage.app.ui.llmchat.GenerationStats
 import com.encourage.app.ui.llmchat.InferenceSource
+import com.encourage.app.ui.llmchat.LlmChatViewModelBase
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -579,6 +580,10 @@ fun ChatView(
                   newConfigValues = filteredNew,
                   model = selectedModel,
                 )
+                // 【T05-②】参数变更后写回当前绑定的特调记录（未绑定记录时为空操作）。
+                if (viewModel is LlmChatViewModelBase) {
+                  viewModel.persistConfigValuesToProfile(selectedModel)
+                }
               },
               onBackClicked = { handleNavigateUp() },
               onModelSelected = { prevModel, curModel ->
