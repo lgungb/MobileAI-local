@@ -496,9 +496,6 @@ fun GalleryNavHost(
         // 【T03】记录绑定参数（T04 消费；当前仅透传）。
         val profileId = backStackEntry.arguments?.getString("profileId")
         val conversationType = backStackEntry.arguments?.getString("type")
-        val scope = rememberCoroutineScope()
-        val context = LocalContext.current
-
         val initialModel = modelManagerViewModel.getModelByName(name = modelName)
         if (initialModel == null) {
           // 【T04】入口模型缺失（未下载 / 记录指向的模型已删）时给出空态，绝不白屏。
@@ -546,30 +543,10 @@ fun GalleryNavHost(
                   if (customNavigateUpCallback != null) {
                     customNavigateUpCallback?.invoke()
                   } else {
+                    // 【T05-① 资源生命周期】退页**不再**销毁模型（保活）。
+                    // 释放时机收敛为：系统低内存 / 删除模型 / 切换模型。
                     enableModelListAnimation = false
                     navController.navigateUp()
-
-                    // clean up all models.
-                    for (curModel in customTask.task.models) {
-                      val instanceToCleanUp = curModel.instance
-                      scope.launch(Dispatchers.Default) {
-                        try {
-                          modelManagerViewModel.cleanupModel(
-                            context = context,
-                            task = customTask.task,
-                            model = curModel,
-                            instanceToCleanUp = instanceToCleanUp,
-                          )
-                        } catch (e: Exception) {
-                          // 【健壮性】清理失败不应中断返回流程或导致崩溃，仅记录日志。
-                          Log.e(
-                            TAG,
-                            "Failed to clean up model '${curModel.name}' for task '${customTask.task.id}'.",
-                            e,
-                          )
-                        }
-                      }
-                    }
                   }
                 },
                 disableAppBarControls = disableAppBarControls,

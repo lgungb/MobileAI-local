@@ -422,16 +422,11 @@ fun ChatView(
   }
   var navigatingUp by remember { mutableStateOf(false) }
 
+  // 【T05-① 资源生命周期】退页**不再**销毁模型（模型保活：用户切走再回来无需重新加载）。
+  // 释放时机收敛为三处：系统低内存（cleanupAllModels）、删除模型、切换模型（见 ModelManagerViewModel）。
   val handleNavigateUp = {
     navigatingUp = true
     navigateUp()
-
-    // clean up all models.
-    scope.launch(Dispatchers.Default) {
-      for (model in task.models) {
-        modelManagerViewModel.cleanupModel(context = context, task = task, model = model)
-      }
-    }
   }
 
   // Initialize model when model/download state changes.

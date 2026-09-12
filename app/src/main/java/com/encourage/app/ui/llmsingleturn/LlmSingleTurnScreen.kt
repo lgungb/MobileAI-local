@@ -101,6 +101,9 @@ fun LlmSingleTurnScreen(
     navigateUp()
 
     // clean up all models.
+    // 【T05-① 刻意保留】Prompt Lab 是「多模型横向对比」页：横向 pager 会同时持有多个模型实例，
+    // 内存语义与「会话列表 + 单模型保活」完全不同，退页释放反而会让对比结果反复重建。
+    // 本轮保持原样，留作后续专项评估，不随会话页一起改为保活。
     scope.launch(Dispatchers.Default) {
       for (model in task.models) {
         modelManagerViewModel.cleanupModel(context = context, task = task, model = model)

@@ -75,6 +75,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import kotlin.collections.sortedWith
 import kotlinx.coroutines.Dispatchers
@@ -444,6 +445,20 @@ constructor(
   }
 
   fun deleteModel(model: Model, removeImportedFromModelList: Boolean = true) {
+    // 【T05-①】删除模型前先释放其实例：否则已删除模型的运行时仍驻留内存，无法回收。
+    // 单个清理失败不应阻断删除流程（文件已删、状态仍需更新），仅记录日志。
+    try {
+      val ownerTask =
+        uiState.value.tasks.firstOrNull { task -> task.models.any { it.name == model.name } }
+      if (ownerTask != null) {
+        cleanupModel(context = context, task = ownerTask, model = model)
+      } else {
+        Log.w(TAG, "deleteModel: no task owns '${model.name}'; skip instance cleanup.")
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "deleteModel: failed to clean up '${model.name}'.", e)
+    }
+
     // If the currently downloaded model is an updatable version, reset the model to its latest
     // version and mark it as not updatable upon deletion.
     if (model.updatable) {
@@ -634,6 +649,44 @@ constructor(
         model.cleanUpAfterInit = true
       }
       onDone()
+    }
+  }
+
+  /**
+   * 【T05-①】释放全部模型实例（低内存等场景使用）。
+   *
+   * 【设计要点】退页**不再**销毁模型（保活），释放时机收敛为三处：
+   * 1. 系统低内存（见 GalleryApp 注册的 ComponentCallbacks2）；
+   * 2. 删除模型（见 [deleteModel]）；
+   * 3. 切换模型（ChatView 的 onModelSelected / GalleryNavGraph 的切页逻辑，保持不变）。
+   *
+   * 遍历当前所有任务的模型逐个清理；单个失败不影响其余（try/catch + Log.e）。
+   *
+   * @param context 应用上下文；默认使用注入的 application context。
+   * @param onDone 全部清理完成后的回调。
+   */
+  fun cleanupAllModels(context: Context = this.context, onDone: () -> Unit = {}) {
+    val tasks = uiState.value.tasks
+    val total = tasks.sumOf { task -> task.models.size }
+    if (total == 0) {
+      Log.d(TAG, "cleanupAllModels: no model instance to release.")
+      onDone()
+      return
+    }
+    // 清理是异步完成的，用原子计数保证 onDone 只在最后一个完成时触发一次。
+    val remaining = AtomicInteger(total)
+    for (task in tasks) {
+      for (model in task.models) {
+        val onOneDone: () -> Unit = {
+          if (remaining.decrementAndGet() <= 0) onDone()
+        }
+        try {
+          cleanupModel(context = context, task = task, model = model, onDone = onOneDone)
+        } catch (e: Exception) {
+          Log.e(TAG, "cleanupAllModels: failed to clean up '${model.name}'.", e)
+          onOneDone()
+        }
+      }
     }
   }
 

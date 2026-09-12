@@ -16,7 +16,11 @@
 
 package com.encourage.app
 
+import android.content.ComponentCallbacks2
+import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -30,6 +34,8 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+
+private const val TAG = "AGGalleryApp"
 
 /** Top level composable representing the main screen of the application. */
 @Composable
@@ -58,6 +64,48 @@ fun GalleryApp(
     val provider = { modelManagerViewModel.getAllDownloadedModels().firstOrNull() }
     localApiServer.modelProvider = provider
     taskAiInvoker.modelProvider = provider
+  }
+
+  // 【T05-① 资源生命周期】低内存时才释放模型实例。
+  //
+  // 【设计要点】
+  // - 退页不再清理（模型保活：用户切走再回来无需重新加载）；
+  // - 单纯转后台**也不**释放 —— 否则保活就失去意义（切回来又要重载几个 GB）；
+  // - 仅在系统发出中度以上内存压力（TRIM_MEMORY_MODERATE 及以上）或 onLowMemory() 时释放，
+  //   这是「保活」与「不拖垮系统」之间的平衡点。
+  //
+  // 说明：注册在 applicationContext 上，生命周期与进程一致；DisposableEffect 负责反注册，
+  // 避免组合销毁后泄漏回调。
+  DisposableEffect(modelManagerViewModel) {
+    val appContext = context.applicationContext
+    val callbacks =
+      object : ComponentCallbacks2 {
+        override fun onTrimMemory(level: Int) {
+          if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
+            Log.w(TAG, "onTrimMemory(level=$level): releasing all model instances.")
+            try {
+              modelManagerViewModel.cleanupAllModels()
+            } catch (e: Exception) {
+              Log.e(TAG, "cleanupAllModels failed on trim memory.", e)
+            }
+          }
+        }
+
+        override fun onConfigurationChanged(newConfig: Configuration) {
+          // 配置变化与模型内存无关，无需处理。
+        }
+
+        override fun onLowMemory() {
+          Log.w(TAG, "onLowMemory(): releasing all model instances.")
+          try {
+            modelManagerViewModel.cleanupAllModels()
+          } catch (e: Exception) {
+            Log.e(TAG, "cleanupAllModels failed on low memory.", e)
+          }
+        }
+      }
+    appContext.registerComponentCallbacks(callbacks)
+    onDispose { appContext.unregisterComponentCallbacks(callbacks) }
   }
 
   GalleryNavHost(navController = navController, modelManagerViewModel = modelManagerViewModel)
