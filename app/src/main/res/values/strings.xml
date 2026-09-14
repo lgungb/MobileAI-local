@@ -1080,4 +1080,7 @@
   <string name="conversation_save_as_new_profile_suggested_alias" translatable="true" description="Suggested alias prefilled in the save-as-new-profile dialog. %1$s is the source profile alias or the model name.">%1$s copy</string>
   <string name="conversation_save_as_new_profile_success" translatable="true" description="Snackbar message shown after the current prompt and parameters were saved as a new profile.">Saved as a new profile</string>
 
+  <!-- T06 会话列表「新建」入口：右下角悬浮按钮的无障碍描述。 -->
+  <string name="conversation_new_cd" translatable="true" description="Content description of the floating action button that starts a new conversation from the conversation list.">New conversation</string>
+
 </resources>

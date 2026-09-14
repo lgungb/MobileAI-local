@@ -1080,4 +1080,7 @@
   <string name="conversation_save_as_new_profile_suggested_alias">%1$s 副本</string>
   <string name="conversation_save_as_new_profile_success">已另存为特调</string>
 
+  <!-- T06 会话列表「新建」入口：右下角悬浮按钮的无障碍描述。 -->
+  <string name="conversation_new_cd">新建会话</string>
+
 </resources>

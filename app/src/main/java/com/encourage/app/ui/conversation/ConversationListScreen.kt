@@ -7,7 +7,8 @@
  * - 列表按 lastUsed 倒序（数据源已排序）；
  * - 点击条目回调 [onProfileClick]（导航由 T03 接入，本页不自行跳转）；
  * - 左滑 / 长按 → 二次确认后删除（文案明确「连聊天记录一起删」）；
- * - 空态引导去「模型」Tab（[onNavigateToModels]）。
+ * - 空态引导去「模型」Tab（[onNavigateToModels]）；
+ * - 右下角悬浮「+」新建会话（[onCreateNew]，T06 补的入口）。
  *
  * 【设计要点】
  * 1. 复用 ui/common/EmptyState。列表项复用 ConversationListItem。
@@ -29,8 +30,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +62,9 @@ import com.encourage.app.ui.common.EmptyStateButtonConfig
  * @param types 需要展示的会话类型集合（对话 Tab 传 {CHAT, IMAGE, AUDIO}；功能 Tab 传 {AGENT}）。
  * @param onProfileClick 点击某条记录（T03 接导航）。
  * @param onNavigateToModels 空态「去模型」回调（T03 接 Tab 切换）。
+ * @param onCreateNew 点击右下角悬浮「+」：用当前已下载模型新建一条记录并进入会话。
+ *   导航层负责「选模型 → 建记录 → 跳转」，本页只负责触发与展示，不感知模型状态。
+ *   没有任何已下载模型时由导航层引导去模型管理页，绝不崩溃。
  * @param modifier 外部修饰。
  * @param titleResId 顶栏标题文案资源。
  * @param viewModel 列表 ViewModel。
@@ -68,6 +75,7 @@ fun ConversationListScreen(
   types: Set<ConversationType>,
   onProfileClick: (ConversationProfile) -> Unit,
   onNavigateToModels: () -> Unit,
+  onCreateNew: () -> Unit,
   modifier: Modifier = Modifier,
   @StringRes titleResId: Int = R.string.bottom_nav_tab_chat,
   viewModel: ConversationListViewModel = hiltViewModel(),
@@ -86,6 +94,16 @@ fun ConversationListScreen(
   Scaffold(
     modifier = modifier.fillMaxSize(),
     topBar = { TopAppBar(title = { Text(stringResource(titleResId)) }) },
+    // 【新建入口】右下角悬浮「+」：这是本页唯一的「开一个新会话」入口。
+    // 之前列表页只能看、只能删，新装用户进来是空列表且无从下手 —— 这个按钮补上这个缺口。
+    floatingActionButton = {
+      FloatingActionButton(onClick = onCreateNew) {
+        Icon(
+          imageVector = Icons.Rounded.Add,
+          contentDescription = stringResource(R.string.conversation_new_cd),
+        )
+      }
+    },
   ) { innerPadding ->
     Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
       if (profiles.isEmpty()) {

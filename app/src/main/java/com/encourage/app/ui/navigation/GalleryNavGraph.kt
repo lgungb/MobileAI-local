@@ -354,6 +354,53 @@ fun GalleryNavHost(
     }
   }
 
+  // 【T06】会话列表右下角「+」：用已下载模型直接建一条记录并进入会话。
+  //
+  // 为什么要补这个入口：T01~T05 落地后，记录只能由「模型」Tab 的识图/语音、或「另存为特调」
+  // 产生，「对话」「功能」两个 Tab 的空列表**没有任何新建入口** —— 新装用户进来是空列表，
+  // 且无从下手。这里补上「开一个新会话」这条最基础的路径。
+  //
+  // 与 [openTaskModelList] 的区别：那边是「从能力卡片进入」（且识图/语音早已走这条路），
+  // 这里纯粹是「开一个普通新会话」，不经过 model_list 选择页。
+  //
+  // @param taskId 目标能力（对话 Tab 传 llm_chat；功能 Tab 传 llm_agent_chat）。
+  // @param type 记录类型（CHAT / AGENT），决定记录落在哪个列表里。
+  val createNewConversation: (String, ConversationType) -> Unit = { taskId, type ->
+    val targetTask = modelManagerUiState.tasks.find { it.id == taskId }
+    if (targetTask == null) {
+      // 任务尚未装配完成（冷启动竞态）：只记日志，不跳转、不崩溃。
+      Log.w(TAG, "Task '$taskId' is not ready; cannot create a new conversation.")
+    } else {
+      val model = pickDefaultModel(targetTask)
+      if (model == null) {
+        // 无任何模型：引导去模型管理页下载，绝不崩溃 / 白屏。
+        Log.w(TAG, "No model available for task '$taskId'; navigating to model manager.")
+        try {
+          navController.navigate(ROUTE_MODEL_MANAGER)
+        } catch (e: Exception) {
+          Log.e(TAG, "Failed to navigate to model manager for task '$taskId'.", e)
+        }
+      } else {
+        scope.launch {
+          try {
+            val profile =
+              conversationListViewModel.createProfileAndReturn(
+                taskId = taskId,
+                modelName = model.name,
+                type = type,
+                displayName = model.displayName.ifBlank { model.name },
+              )
+            if (profile != null) {
+              openProfile(profile)
+            }
+          } catch (e: Exception) {
+            Log.e(TAG, "Failed to create a new conversation for task '$taskId'.", e)
+          }
+        }
+      }
+    }
+  }
+
   Box(modifier = modifier.fillMaxSize()) {
     NavHost(
       navController = navController,
@@ -369,6 +416,9 @@ fun GalleryNavHost(
             titleResId = R.string.bottom_nav_tab_chat,
             onProfileClick = openProfile,
             onNavigateToModels = { onTabSelected(BottomTab.MODELS) },
+            onCreateNew = {
+              createNewConversation(BuiltInTaskId.LLM_CHAT, ConversationType.CHAT)
+            },
           )
         }
       }
@@ -381,6 +431,9 @@ fun GalleryNavHost(
             titleResId = R.string.bottom_nav_tab_agent,
             onProfileClick = openProfile,
             onNavigateToModels = { onTabSelected(BottomTab.MODELS) },
+            onCreateNew = {
+              createNewConversation(BuiltInTaskId.LLM_AGENT_CHAT, ConversationType.AGENT)
+            },
           )
         }
       }
