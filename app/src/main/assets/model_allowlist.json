@@ -187,6 +187,7 @@
       "name": "TinyGarden-270M",
       "modelId": "litert-community/functiongemma-270m-ft-tiny-garden",
       "modelFile": "tiny_garden_q8_ekv1024.litertlm",
+      "url": "https://www.modelscope.cn/models/litert-community/functiongemma-270m-ft-tiny-garden/resolve/master/tiny_garden_q8_ekv1024.litertlm",
       "description": "Fine-tuned Function Gemma 270M model for Tiny Garden.",
       "sizeInBytes": 288964608,
       "minDeviceMemoryInGb": 6,
@@ -209,8 +210,9 @@
       "name": "MobileActions-270M",
       "modelId": "litert-community/functiongemma-270m-ft-mobile-actions",
       "modelFile": "mobile_actions_q8_ekv1024.litertlm",
+      "url": "https://www.modelscope.cn/models/litert-community/functiongemma-mobile-actions_q8_ekv1024.litertlm/resolve/master/mobile-actions_q8_ekv1024.litertlm",
       "description": "Fine-tuned Function Gemma 270M model for Mobile Actions.",
-      "sizeInBytes": 288964608,
+      "sizeInBytes": 284426240,
       "minDeviceMemoryInGb": 6,
       "commitHash": "38942192c9b723af836d489074823ff33d4a3e7a",
       "defaultConfig": {
