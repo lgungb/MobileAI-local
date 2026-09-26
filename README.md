@@ -1,12 +1,12 @@
-# SeAI_Encourage — Encourage（端侧 AI 助手）
+# Encourage — 端侧（On-Device）AI 助手
 
 > **一句话定位**：跑在你手机上的、**完全本地的 AI 助手**——不用联网、不上传数据，
 > 对话、识图、语音、朗读都发生在你的设备上，**隐私永不离开手机**。
 
-## 这是干什么的
+## 这是什么
 
-Encourage 是一个**端侧优先（on-device / edge AI）**的 Android AI 应用。核心是把大语言模型（Gemma 等）
-**直接装进手机、跑在骁龙 NPU 上**，而不是发到云端。同时它不只是一个聊天框，而是把多种 AI 能力
+Encourage 是一个**端侧优先（on-device / edge AI）**的 Android AI 应用。它把大语言模型（Gemma 等）
+**直接装进手机、跑在设备 NPU 上**，而不是发到云端。同时它不只是一个聊天框，而是把多种 AI 能力
 收敛进一个可对话、可自动化、可扩展的助手：
 
 | 你会怎么用它 | 背后能力 |
@@ -32,7 +32,7 @@ Encourage 是一个**端侧优先（on-device / edge AI）**的 Android AI 应�
 > 本工程是原 **Google AI Edge Gallery** 的 **Encourage fork**：已去 Google 化、换自有品牌
 > `com.encourage.app`，保留 Apache 2.0 开源许可。
 
-## 界面长什么样
+## 界面
 
 进入 App 是**微信式底部 5 Tab**：
 
@@ -47,29 +47,24 @@ Encourage 是一个**端侧优先（on-device / edge AI）**的 Android AI 应�
 - 每条会话记录保存了**自己的**模型、角色提示词、采样参数——同一模型可以有多套完全不同的"特调"。
 - 记录持久化在本地，重启保留；删除记录会连带删除它名下的聊天记录。
 
-## 快速构建（离线）
+## 快速构建
 
 ```bash
-cd D:\AndroidWork\SeAI_Encourage
-# 需 JDK 21；若系统未配置 JAVA_HOME：
-set JAVA_HOME=C:\Program Files\Java\jdk-21.0.12.1
-gradlew.bat assembleRelease --offline
-# 构建完成后释放守护进程内存：
-gradlew.bat --stop
+# 需 JDK 21
+./gradlew assembleRelease
 ```
 
-产物：`app\build\outputs\apk\release\app-release.apk`
+产物：`app/build/outputs/apk/release/app-release.apk`
 
-> 约定：本机环境一律 `--offline` 构建；**不要删除** `%USERPROFILE%\.gradle\caches`、
-> `%USERPROFILE%\.gradle\wrapper\dists` 等缓存，也不要触发联网全量下载。
-> 构建内存上限已在 `gradle.properties` 限制，**不要上调**。
+> 国内环境建议 `--offline` 构建；构建内存上限已在 `gradle.properties` 限制，**不要上调**。
 
-## 工程说明（交接给下一个开发者 / AI）
+## 工程说明
 
 - **包名 / applicationId**：`com.encourage.app`
-- **License**：Apache 2.0（见根目录 `LICENSE`，保留 Google 版权原样）
-- **工程名**：`SeAI-Encourage`（见 `settings.gradle.kts`）
-- 技术栈 / 构建 / 界面 / 功能清单见下表「文档入口」
+- **工程名**：`SeAI-Encourage`
+- **技术栈**：Kotlin + Jetpack Compose + Hilt + Protobuf + TFLite/LiteRT + Ktor（本地 HTTP）+ sherpa-onnx（离线 TTS）
+- **最低系统**：Android 12（API 31），targetSdk 36
+- **仅打包** `arm64-v8a`（Android 12+ 设备均为 64 位 ARM）
 
 ## 目录地图
 
@@ -81,17 +76,13 @@ gradlew.bat --stop
 | `app/src/main/proto/` | Protobuf 定义（含 `conversation_profile.proto`） |
 | `app/libs/` | sherpa-onnx 本地 AAR |
 | `gradle/` | wrapper + `libs.versions.toml`（版本目录） |
-| `doc/` | 中文说明文档：00~04=现状/架构/构建/界面/功能状态；`doc/演进设计/`=设计留档 |
+| `doc/` | 中文说明文档 |
 | `LICENSE` | Apache 2.0 |
 
-## 文档入口
+## License
 
-- `doc/00_索引.md`：总索引（当前形态 / 技术栈 / 文档地图 / 协作约定）
-- `doc/01_架构说明.md`：代码怎么组织、关键链路、每个模块作用
-- `doc/02_构建与工具链.md`：构建命令、离线与内存约定、JDK/Gradle/依赖位置
-- `doc/03_界面与操作流程.md`：5 个 Tab 各有什么、每个功能怎么用
-- `doc/04_功能清单与实现状态.md`：每项能力做没做、做到哪；已知技术债
-- `doc/演进设计/`：设计留档（五 Tab / 会话列表改造的方案与图表）
+[Apache License 2.0](./LICENSE)
 
-> 顶层不再保留 gallery 仓库的 `skills/`、`mcp/`、`model_allowlists/`、`model_allowlist.json`：
-> 它们不被 gradle 构建引用，APK 使用的资源已在 `app/src/main/assets/` 内置副本。详见 `doc/01`。
+---
+
+本仓库由 **MobileAI-local** 托管，用于发布 Encourage 的构建产物（Release APK）。
