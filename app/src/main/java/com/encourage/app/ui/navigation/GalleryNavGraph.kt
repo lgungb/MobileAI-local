@@ -274,8 +274,16 @@ fun GalleryNavHost(
   // 【T04】识图 / 语音 / 对话统一收敛到 llm_chat（通过 type 区分输入能力）；
   // Agent 记录仍走原生 llm_agent_chat（依赖 Skills / MCP，不能收敛为普通对话）。
   val openProfile: (ConversationProfile) -> Unit = { profile ->
-    if (profile.modelName.isBlank()) {
-      Log.w(TAG, "Profile '${profile.id}' has blank model; navigation ignored.")
+    // 【N7】模型锁定：点对话不切换后台模型，始终用全局默认模型。
+    // profile 只提供提示词和采样参数，不绑定模型。
+    val defaultModelId = modelManagerViewModel.uiState.value.defaultModelId
+    val modelName = if (defaultModelId.isNotBlank()) {
+      defaultModelId
+    } else {
+      profile.modelName
+    }
+    if (modelName.isBlank()) {
+      Log.w(TAG, "Profile '${profile.id}' has no model; navigation ignored.")
     } else {
       val routeTaskId =
         if (profile.type == ConversationType.AGENT) {
@@ -285,7 +293,7 @@ fun GalleryNavHost(
         }
       try {
         navController.navigate(
-          "$ROUTE_MODEL/$routeTaskId/${profile.modelName}" +
+          "$ROUTE_MODEL/$routeTaskId/$modelName" +
             "?profileId=${profile.id}&type=${profile.type.name}"
         )
       } catch (e: Exception) {
