@@ -55,6 +55,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -237,6 +238,7 @@ fun MainUi(
   var curAmplitude by remember { mutableIntStateOf(0) }
   val holdToDictateUiState by holdToDictateViewModel.uiState.collectAsState()
   var showConversationHistoryPanel by remember { mutableStateOf(false) }
+  var showHelpDialog by remember { mutableStateOf(false) }
   var showErrorDialog by remember { mutableStateOf(false) }
   var errorDialogContent by remember { mutableStateOf("") }
   val snackbarHostState = remember { SnackbarHostState() }
@@ -629,6 +631,17 @@ fun MainUi(
                 modifier = Modifier.padding(end = 8.dp).size(24.dp),
               )
             } else {
+              // 帮助按钮：显示中文游戏说明
+              IconButton(
+                onClick = { showHelpDialog = true },
+                modifier = Modifier.padding(end = 4.dp),
+              ) {
+                Icon(
+                  imageVector = Icons.Outlined.Info,
+                  contentDescription = "游戏帮助",
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
               IconButton(
                 onClick = { showConversationHistoryPanel = true },
                 modifier = Modifier.padding(end = 8.dp),
@@ -723,6 +736,40 @@ fun MainUi(
           colors = ButtonDefaults.buttonColors(containerColor = taskColor),
         ) {
           Text(stringResource(R.string.reset), color = Color.White)
+        }
+      },
+    )
+  }
+
+  // 【N10】Tiny Garden 中文游戏帮助对话框
+  if (showHelpDialog) {
+    AlertDialog(
+      onDismissRequest = { showHelpDialog = false },
+      title = { Text("🌱 小花园怎么玩") },
+      text = {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Text("你有一个 3×3 的小花园（9 块地，编号 1-9）。用中文告诉 AI 你想做什么：", style = MaterialTheme.typography.bodyMedium)
+          Text("", style = MaterialTheme.typography.bodySmall)
+          Text("🌻 种花：", style = MaterialTheme.typography.titleSmall)
+          Text("• 在第一行种向日葵", style = MaterialTheme.typography.bodySmall)
+          Text("• 在 5 号地种玫瑰", style = MaterialTheme.typography.bodySmall)
+          Text("• 左边列种雏菊", style = MaterialTheme.typography.bodySmall)
+          Text("", style = MaterialTheme.typography.bodySmall)
+          Text("💧 浇水：", style = MaterialTheme.typography.titleSmall)
+          Text("• 给中间那排浇水", style = MaterialTheme.typography.bodySmall)
+          Text("• 给 1、3、5 号地浇水", style = MaterialTheme.typography.bodySmall)
+          Text("", style = MaterialTheme.typography.bodySmall)
+          Text("🌾 收获：", style = MaterialTheme.typography.titleSmall)
+          Text("• 把第三行的花收了", style = MaterialTheme.typography.bodySmall)
+          Text("• 收获所有花", style = MaterialTheme.typography.bodySmall)
+          Text("", style = MaterialTheme.typography.bodySmall)
+          Text("💡 小技巧：", style = MaterialTheme.typography.titleSmall)
+          Text("花需要浇水才会长大，长大了才能收获。试试先种一朵花，等它长大，再浇水，再收获！", style = MaterialTheme.typography.bodySmall)
+        }
+      },
+      confirmButton = {
+        TextButton(onClick = { showHelpDialog = false }) {
+          Text("知道了")
         }
       },
     )
