@@ -66,16 +66,15 @@ fun TaskTabScreen(
   val uiState by modelManagerViewModel.uiState.collectAsState()
   val task = remember(uiState.tasks, taskId) { uiState.tasks.find { it.id == taskId } }
 
-  // 默认模型：优先已下载（SUCCEEDED）的第一个，其次回退到该任务的第一个模型。
+  // 【N6】默认模型：优先用户设置的全局默认模型（已下载时），否则回退已下载第一个，
+  // 再回退该任务第一个模型。
   val defaultModel =
-    remember(uiState.tasks, uiState.modelDownloadStatus, taskId) {
+    remember(uiState.tasks, uiState.modelDownloadStatus, uiState.defaultModelId, taskId) {
       val curTask = uiState.tasks.find { it.id == taskId }
       if (curTask == null) {
         null
       } else {
-        curTask.models.firstOrNull { model ->
-          uiState.modelDownloadStatus[model.name]?.status == ModelDownloadStatusType.SUCCEEDED
-        } ?: curTask.models.firstOrNull()
+        modelManagerViewModel.resolveDefaultModelForTask(curTask)
       }
     }
 

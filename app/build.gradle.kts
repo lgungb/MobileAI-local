@@ -23,7 +23,6 @@ plugins {
   alias(libs.plugins.hilt.application)
   // alias(libs.plugins.oss.licenses)  // disabled: incompatible with AGP 8.13
   alias(libs.plugins.ksp)
-  kotlin("kapt")
 }
 
 android {
@@ -156,7 +155,7 @@ dependencies {
   // implementation(libs.play.services.oss.licenses)  // disabled with plugin
   implementation(libs.androidx.exifinterface)
   implementation(libs.moshi.kotlin)
-  kapt(libs.hilt.android.compiler)
+  ksp(libs.hilt.android.compiler)
   testImplementation(libs.junit)
   androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.espresso.core)

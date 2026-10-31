@@ -144,6 +144,9 @@ message Settings {
   repeated TimedTask timed_tasks = 19;
   // 本地 API Server 配置（M4 / 需求 B2）。
   LocalServerConfig local_server = 20;
+  // 【N6】全局默认模型 id（Model.name）。用户可在模型管理页设置；
+  // 设置后所有对话 / 识图 / 语音新建会话默认使用该模型，不再逐对话选择。
+  string default_model_id = 21;
 }
 
 // 本地 API Server 配置（M4 / 需求 B2）。

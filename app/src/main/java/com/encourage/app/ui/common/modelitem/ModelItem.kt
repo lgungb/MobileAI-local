@@ -35,6 +35,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.UnfoldLess
 import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material3.DropdownMenu
@@ -419,6 +421,8 @@ fun ModelItemActionMenu(
 ) {
   var showMenu by remember { mutableStateOf(false) }
   var showConfirmDeleteDialog by remember { mutableStateOf(false) }
+  val uiState by modelManagerViewModel.uiState.collectAsState()
+  val isDefault = uiState.defaultModelId == model.name
 
   Box(modifier = modifier) {
     IconButton(onClick = { showMenu = true }) {
@@ -429,6 +433,25 @@ fun ModelItemActionMenu(
       )
     }
     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+      // 【N6】设为 / 取消全局默认模型。
+      DropdownMenuItem(
+        text = {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Icon(
+              if (isDefault) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+              contentDescription = null,
+            )
+            Text(if (isDefault) "取消默认模型" else "设为默认模型")
+          }
+        },
+        onClick = {
+          showMenu = false
+          modelManagerViewModel.setDefaultModel(if (isDefault) null else model)
+        },
+      )
       if (showBenchmarkButton) {
         DropdownMenuItem(
           text = {

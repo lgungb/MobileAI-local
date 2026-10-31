@@ -264,13 +264,10 @@ fun GalleryNavHost(
   val conversationListViewModel: ConversationListViewModel = hiltViewModel()
   val scope = rememberCoroutineScope()
 
-  // 【T03】复用 TaskTabScreen 的默认模型选择策略：优先该任务下已下载（SUCCEEDED）的第一个，
-  // 否则回退该任务的第一个模型；都没有则返回 null（调用方兜底）。
+  // 【N6】统一「解析默认模型」策略：优先用户设置的全局默认模型（已下载时），
+  // 否则回退该任务下已下载（SUCCEEDED）的第一个，再回退该任务的第一个模型。
   val pickDefaultModel: (Task) -> Model? = { targetTask ->
-    targetTask.models.firstOrNull { model ->
-      modelManagerUiState.modelDownloadStatus[model.name]?.status ==
-        ModelDownloadStatusType.SUCCEEDED
-    } ?: targetTask.models.firstOrNull()
+    modelManagerViewModel.resolveDefaultModelForTask(targetTask)
   }
 
   // 【T03/T04】统一「进入会话」入口：带上 profileId 与 type。
@@ -846,7 +843,8 @@ private fun CustomTaskScreen(
           useThemeColor = useThemeColor,
           modifier =
             Modifier.onGloballyPositioned { coordinates -> appBarHeight = coordinates.size.height },
-          hideModelSelector = task.models.size <= 1,
+          // 【N6】全局默认模型：识图/语音等单轮页也不再在标题栏选模型。
+          hideModelSelector = true,
           onConfigChanged = { _, _ -> },
           onBackClicked = { handleNavigateUp() },
           onModelSelected = { prevModel, newSelectedModel ->

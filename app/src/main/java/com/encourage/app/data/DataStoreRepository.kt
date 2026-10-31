@@ -130,6 +130,12 @@ interface DataStoreRepository {
 
   /** Returns whether a promo with the specified ID has been viewed. */
   fun hasViewedPromo(promoId: String): Boolean
+
+  /** Persists the globally-selected default model id (empty string clears it). */
+  fun saveDefaultModelId(modelId: String)
+
+  /** Returns the globally-selected default model id, or empty string if none set. */
+  fun readDefaultModelId(): String
 }
 
 /** Repository for managing data using Proto DataStore. */
@@ -470,6 +476,21 @@ class DefaultDataStoreRepository(
     return runBlocking {
       val settings = dataStore.data.first()
       settings.viewedPromoIdList.contains(promoId)
+    }
+  }
+
+  override fun saveDefaultModelId(modelId: String) {
+    runBlocking {
+      dataStore.updateData { settings ->
+        settings.toBuilder().setDefaultModelId(modelId).build()
+      }
+    }
+  }
+
+  override fun readDefaultModelId(): String {
+    return runBlocking {
+      val settings = dataStore.data.first()
+      settings.defaultModelId
     }
   }
 }

@@ -161,6 +161,8 @@ data class ModelManagerUiState(
   val configValuesUpdateTrigger: Long = 0L,
   // Updated when model is imported of an imported model is deleted.
   val modelImportingUpdateTrigger: Long = 0L,
+  // 【N6】用户设置的全局默认模型 id（Model.name）；空串表示未设置（回退自动推导）。
+  val defaultModelId: String = "",
 ) {
   fun isModelInitialized(model: Model): Boolean {
     return modelInitializationStatus[model.name]?.status ==
@@ -373,6 +375,39 @@ constructor(
     if (_uiState.value.selectedModel.name != model.name) {
       _uiState.update { it.copy(selectedModel = model) }
     }
+  }
+
+  /**
+   * 【N6】设置全局默认模型：持久化到 DataStore，并刷新 uiState。
+   * 传 null 或空串表示清除默认（回退自动推导）。
+   */
+  fun setDefaultModel(model: Model?) {
+    val id = model?.name.orEmpty()
+    dataStoreRepository.saveDefaultModelId(id)
+    _uiState.update { it.copy(defaultModelId = id) }
+  }
+
+  /**
+   * 【N6】按 task 解析该任务当前应使用的默认模型：
+   * 1. 若用户设置的全局默认模型存在于该 task 的 models 里，且已下载（或云端），直接返回；
+   * 2. 否则回退到该任务下第一个已下载（SUCCEEDED）的模型；
+   * 3. 再回退到该任务的第一个模型。
+   */
+  fun resolveDefaultModelForTask(task: Task): Model? {
+    val ui = _uiState.value
+    val pref = ui.defaultModelId
+    if (pref.isNotEmpty()) {
+      val candidate = task.models.firstOrNull { it.name == pref }
+      if (candidate != null) {
+        val status = ui.modelDownloadStatus[candidate.name]?.status
+        if (status == ModelDownloadStatusType.SUCCEEDED || candidate.runtimeType == RuntimeType.AICORE) {
+          return candidate
+        }
+      }
+    }
+    return task.models.firstOrNull {
+      ui.modelDownloadStatus[it.name]?.status == ModelDownloadStatusType.SUCCEEDED
+    } ?: task.models.firstOrNull()
   }
 
   open fun downloadModel(task: Task?, model: Model) {
@@ -1390,6 +1425,7 @@ constructor(
       modelDownloadStatus = modelDownloadStatus,
       modelInitializationStatus = modelInstances,
       textInputHistory = textInputHistory,
+      defaultModelId = dataStoreRepository.readDefaultModelId(),
     )
   }
 

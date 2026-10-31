@@ -573,6 +573,8 @@ fun ChatView(
               inProgress = uiState.inProgress,
               modelPreparing = uiState.preparing,
               shouldShowHistoryButton = true,
+              // 【N6】全局默认模型：对话页不再在标题栏选择模型，只显示当前会话所用模型。
+              hideModelSelector = true,
               onConfigChanged = { old, new ->
                 // Filter out config values that are not relevant to the task.
                 //

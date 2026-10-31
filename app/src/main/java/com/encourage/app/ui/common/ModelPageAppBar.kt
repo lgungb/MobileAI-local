@@ -18,11 +18,9 @@ package com.encourage.app.ui.common
 
 import android.os.Bundle
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -153,46 +151,41 @@ fun ModelPageAppBar(
     },
     // The config button for the model (if existed).
     actions = {
-      // 【T05-③】调用方注入的额外动作（如「另存为特调」），渲染在配置 / 历史按钮左侧。
+      // 【T05-③】调用方注入的额外动作（如「另存为特调」），渲染在最右侧。
       extraActions?.invoke(this)
       val downloadSucceeded = curDownloadStatus?.status == ModelDownloadStatusType.SUCCEEDED
+      // 【按钮重叠修复】去掉原先 Box + offset(-40dp) 的堆叠 hack（会向左溢出撞上保存按钮），
+      // 改为按序正常横向排列：保存 / 模型设置 / 历史。
+      if (downloadSucceeded && shouldShowHistoryButton) {
+        val enableHistoryButton =
+          !isModelInitializing && !modelPreparing && !inProgress && isModelInitialized
+        IconButton(
+          onClick = { onHistoryClicked(model) },
+          enabled = enableHistoryButton,
+          modifier = Modifier.alpha(if (!enableHistoryButton) 0.5f else 1f),
+        ) {
+          Icon(
+            imageVector = Icons.Rounded.History,
+            contentDescription = stringResource(R.string.cd_chat_history),
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(20.dp),
+          )
+        }
+      }
       val showConfigButton = model.configs.isNotEmpty() && downloadSucceeded
-      Box(modifier = Modifier.size(42.dp), contentAlignment = Alignment.Center) {
-        var configButtonOffset = 0.dp
-        if (showConfigButton && shouldShowHistoryButton) {
-          configButtonOffset = (-40).dp
-        }
-        if (showConfigButton) {
-          val enableConfigButton = !isModelInitializing && !inProgress && isModelInitialized
-          IconButton(
-            onClick = { showConfigDialog = true },
-            enabled = enableConfigButton,
-            modifier =
-              Modifier.offset(x = configButtonOffset).alpha(if (!enableConfigButton) 0.5f else 1f),
-          ) {
-            Icon(
-              imageVector = Icons.Rounded.Tune,
-              contentDescription = stringResource(R.string.cd_model_settings_icon),
-              tint = MaterialTheme.colorScheme.onSurface,
-              modifier = Modifier.size(20.dp),
-            )
-          }
-        }
-        if (downloadSucceeded && shouldShowHistoryButton) {
-          val enableHistoryButton =
-            !isModelInitializing && !modelPreparing && !inProgress && isModelInitialized
-          IconButton(
-            onClick = { onHistoryClicked(model) },
-            enabled = enableHistoryButton,
-            modifier = Modifier.alpha(if (!enableHistoryButton) 0.5f else 1f),
-          ) {
-            Icon(
-              imageVector = Icons.Rounded.History,
-              contentDescription = stringResource(R.string.cd_chat_history),
-              tint = MaterialTheme.colorScheme.onSurface,
-              modifier = Modifier.size(20.dp),
-            )
-          }
+      if (showConfigButton) {
+        val enableConfigButton = !isModelInitializing && !inProgress && isModelInitialized
+        IconButton(
+          onClick = { showConfigDialog = true },
+          enabled = enableConfigButton,
+          modifier = Modifier.alpha(if (!enableConfigButton) 0.5f else 1f),
+        ) {
+          Icon(
+            imageVector = Icons.Rounded.Tune,
+            contentDescription = stringResource(R.string.cd_model_settings_icon),
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(20.dp),
+          )
         }
       }
     },
