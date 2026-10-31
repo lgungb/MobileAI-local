@@ -335,17 +335,22 @@ fun GalleryNavHost(
         }
       }
       else -> {
-        // 其它能力（含 Tiny Garden / Mobile Actions）：保持原样，进入 model_list。
-        try {
-          pickedTask = task
-          enableModelListAnimation = true
-          navController.navigate(ROUTE_MODEL_LIST)
-          firebaseAnalytics?.logEvent(
-            GalleryEvent.CAPABILITY_SELECT.id,
-            Bundle().apply { putString("capability_name", task.id) },
-          )
-        } catch (e: Exception) {
-          Log.e(TAG, "Failed to open model list for task '${task.id}'.", e)
+        // 【N6】实验类任务（Tiny Garden / Mobile Actions）：直接用全局默认模型进对话，
+        // 不再弹模型选择列表。用户若想切模型，需去模型管理页「设为默认」。
+        val model = pickDefaultModel(task)
+        if (model == null) {
+          Log.w(TAG, "No model available for task '${task.id}'; navigating to model manager.")
+          try {
+            navController.navigate(ROUTE_MODEL_MANAGER)
+          } catch (e: Exception) {
+            Log.e(TAG, "Failed to navigate to model manager for task '${task.id}'.", e)
+          }
+        } else {
+          try {
+            navController.navigate("$ROUTE_MODEL/${task.id}/${model.name}")
+          } catch (e: Exception) {
+            Log.e(TAG, "Failed to open task '${task.id}' with model '${model.name}'.", e)
+          }
         }
       }
     }
