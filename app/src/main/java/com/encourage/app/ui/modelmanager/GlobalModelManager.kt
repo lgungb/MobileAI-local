@@ -224,21 +224,59 @@ fun GlobalModelManager(
       }
     }
 
+  // 【N6】点模型 = 修改默认模型，需先确认切换会重新加载。
+  var pendingModelForSwitch by remember { mutableStateOf<Model?>(null) }
+
   val handleClickModel: (Model) -> Unit = { model ->
-    val tasks = viewModel.uiState.value.tasks
-    val tasksForModel = tasks.filter { task -> task.models.any { it.name == model.name } }
-    // If there is only one task for the model, navigate to the model directly.
-    if (tasksForModel.size == 1) {
-      onModelSelected(tasksForModel[0], model)
+    // 已锁定的默认模型直接进入，不重复确认。
+    if (viewModel.uiState.value.defaultModelId == model.name) {
+      val tasks = viewModel.uiState.value.tasks
+      val tasksForModel = tasks.filter { task -> task.models.any { it.name == model.name } }
+      if (tasksForModel.size == 1) {
+        onModelSelected(tasksForModel[0], model)
+      } else if (tasksForModel.size > 1) {
+        taskCandidates.clear()
+        taskCandidates.addAll(tasksForModel)
+        modelForTaskCandidate = model
+        showTaskSelectorBottomSheet = true
+      }
+    } else {
+      // 非常锁定模型：弹确认。
+      pendingModelForSwitch = model
     }
-    // If there are multiple tasks for the model, show a bottom sheet for the user to choose which
-    // task to use.
-    else if (tasksForModel.size > 1) {
-      taskCandidates.clear()
-      taskCandidates.addAll(tasksForModel)
-      modelForTaskCandidate = model
-      showTaskSelectorBottomSheet = true
-    }
+  }
+
+  // 切换模型确认弹窗。
+  pendingModelForSwitch?.let { model ->
+    AlertDialog(
+      onDismissRequest = { pendingModelForSwitch = null },
+      title = { Text("切换默认模型") },
+      text = {
+        Text(
+          "切换到「${model.displayName.ifEmpty { model.name }}」需要重新加载模型，" +
+            "首次推理会明显变慢。确定要切换吗？"
+        )
+      },
+      confirmButton = {
+        TextButton(onClick = {
+          viewModel.setDefaultModel(model)
+          pendingModelForSwitch = null
+          val tasks = viewModel.uiState.value.tasks
+          val tasksForModel = tasks.filter { task -> task.models.any { it.name == model.name } }
+          if (tasksForModel.size == 1) {
+            onModelSelected(tasksForModel[0], model)
+          } else if (tasksForModel.size > 1) {
+            taskCandidates.clear()
+            taskCandidates.addAll(tasksForModel)
+            modelForTaskCandidate = model
+            showTaskSelectorBottomSheet = true
+          }
+        }) { Text("切换") }
+      },
+      dismissButton = {
+        TextButton(onClick = { pendingModelForSwitch = null }) { Text("取消") }
+      },
+    )
   }
 
   // Handle system's edge swipe.
