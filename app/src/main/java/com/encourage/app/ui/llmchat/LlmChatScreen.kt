@@ -90,6 +90,8 @@ fun LlmChatScreen(
   boundProfileId: String = "",
   // 【T05-③】「另存为特调」入口回调；为 null 时工具栏不显示该按钮。
   onSaveAsNewProfile: (() -> Unit)? = null,
+  // 【N8】标题覆盖：Agent 分身名。
+  titleOverride: String? = null,
 ) {
   ChatViewWrapper(
     viewModel = viewModel,
@@ -118,6 +120,7 @@ fun LlmChatScreen(
     getActiveSkills = getActiveSkills,
     boundProfileId = boundProfileId,
     onSaveAsNewProfile = onSaveAsNewProfile,
+    titleOverride = titleOverride,
   )
 }
 
@@ -244,6 +247,8 @@ fun ChatViewWrapper(
   boundProfileId: String = "",
   // 【T05-③】「另存为特调」入口回调；为 null 时工具栏不显示该按钮。
   onSaveAsNewProfile: (() -> Unit)? = null,
+  // 【N8】标题覆盖：Agent 分身名。
+  titleOverride: String? = null,
 ) {
   val context = LocalContext.current
   // 【防闪退】任务尚未装配完成（首次运行 / 冷启动竞态，uiState.tasks 还未就绪）时，
@@ -394,5 +399,6 @@ fun ChatViewWrapper(
     generationStats = generationStats,
     boundProfileId = boundProfileId,
     onSaveAsNewProfile = onSaveAsNewProfile,
+    titleOverride = titleOverride,
   )
 }

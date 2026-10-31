@@ -91,6 +91,10 @@ fun ModelPageAppBar(
    * 是否显示由调用方决定 —— 本组件不感知业务语义（如当前会话是否已绑定记录）。
    */
   extraActions: @Composable (RowScope.() -> Unit)? = null,
+  /**
+   * 【N8】标题覆盖：非空时用此文案替代 task.label（用于显示 Agent 分身名）。
+   */
+  titleOverride: String? = null,
 ) {
   var showConfigDialog by remember { mutableStateOf(false) }
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
@@ -122,7 +126,11 @@ fun ModelPageAppBar(
             modifier = Modifier.size(24.dp),
             contentDescription = null,
           )
-          Text(task.label, style = MaterialTheme.typography.titleMedium, color = tintColor)
+          Text(
+            titleOverride ?: task.label,
+            style = MaterialTheme.typography.titleMedium,
+            color = tintColor,
+          )
         }
 
         // Model chips pager.

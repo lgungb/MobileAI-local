@@ -317,6 +317,10 @@ fun ChatView(
    * 「另存为」没有来源，按钮出现只会误导用户。
    */
   onSaveAsNewProfile: (() -> Unit)? = null,
+  /**
+   * 【N8】标题覆盖：非空时显示 Agent 分身名，否则显示 task.label。
+   */
+  titleOverride: String? = null,
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
@@ -625,6 +629,8 @@ fun ChatView(
                 )
                 scope.launch { drawerState.open() }
               },
+              // 【N8】标题覆盖：Agent 分身名。
+              titleOverride = titleOverride,
               // 【T05-③】「另存为特调」按钮：调用方未提供回调、或未绑定记录时不渲染。
               extraActions = {
                 val saveAsNewProfile = onSaveAsNewProfile
@@ -669,8 +675,12 @@ fun ChatView(
               ) { targetState ->
                 when (targetState) {
                   // Main UI when model is downloaded.
+                  // 【N9】切换对话时用 key 强制重建 ChatPanel，重置 MessageInputText 内部状态
+                  // （pickedImages / pickedAudioClips / showAddContentMenu 等），
+                  // 否则切换对话后语音/图片输入会因为 remember 状态残留而失效。
                   true ->
-                    ChatPanel(
+                    key(boundProfileId) {
+                      ChatPanel(
                       modelManagerViewModel = modelManagerViewModel,
                       task = task,
                       selectedModel = selectedModel,
@@ -714,6 +724,7 @@ fun ChatView(
                         }
                       },
                     )
+                    }
                   // Model download
                   false ->
                     ModelDownloadStatusInfoPanel(

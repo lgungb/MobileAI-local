@@ -192,6 +192,8 @@ constructor(
         showImagePicker = true,
         showAudioPicker = true,
         boundProfileId = boundProfileId.orEmpty(),
+        // 【N8】标题显示 Agent 分身名。
+        titleOverride = boundProfileAlias.takeIf { it.isNotBlank() },
         onSystemPromptChanged = { newPrompt ->
           val selectedModel = myData.modelManagerViewModel.uiState.value.selectedModel
           viewModel.applySystemPromptChange(
