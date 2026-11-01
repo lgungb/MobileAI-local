@@ -147,9 +147,9 @@ constructor(
       markMigrationDone()
     }
 
-    Log.d(
+    Log.w(
       TAG,
-      "Session migration finished: migrated=$migrated, skipped=$skipped, failed=$failed, " +
+      "migrate: finished. migrated=$migrated, skipped=$skipped, failed=$failed, " +
         "backup=${backup?.absolutePath ?: "none"}",
     )
     SessionMigrationResult(
@@ -177,6 +177,8 @@ constructor(
    * @return 本次是否真的执行了切换（已切换过返回 false）。
    */
   suspend fun cutoverIfNeeded(): Boolean = withContext(Dispatchers.IO) {
+    // 【排障锚点】进入即打日志，且用 W 级别（部分 ROM 会过滤 D 级日志，导致「什么都没发生」的假象）。
+    Log.w(TAG, "cutover: enter")
     val userData =
       try {
         userDataDataStore.data.first()
@@ -185,11 +187,17 @@ constructor(
         return@withContext false
       }
 
-    if (userData.secretsMap[CUTOVER_FLAG] == "done") {
+    val flag = userData.secretsMap[CUTOVER_FLAG]
+    val legacyCount = userData.chatSessionsList.size
+    val indexCount =
+      runCatching { sessionFileStore.listSessions().size }.getOrDefault(-1)
+    Log.w(TAG, "cutover: flag=$flag, legacySessions=$legacyCount, indexSessions=$indexCount")
+
+    if (flag == "done") {
       return@withContext false
     }
 
-    Log.d(TAG, "Session file cutover starting.")
+    Log.w(TAG, "cutover: starting the one-time switch.")
 
     // 1. 补齐：强制重跑一次迁移（按 timestampMs 增量，已有的会跳过）。
     resetMigrationFlag()
@@ -206,7 +214,7 @@ constructor(
 
     // 3. 落标记。
     markCutoverDone()
-    Log.d(TAG, "Session file cutover done: migrated=${result.migrated}, pruned=$pruned.")
+    Log.w(TAG, "cutover: done. migrated=${result.migrated}, pruned=$pruned.")
     true
   }
 
