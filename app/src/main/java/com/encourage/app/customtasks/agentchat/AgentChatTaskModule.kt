@@ -33,6 +33,7 @@ import com.encourage.app.data.BuiltInTaskId
 import com.encourage.app.data.Category
 import com.encourage.app.data.Model
 import com.encourage.app.data.Task
+import com.encourage.app.data.backupReplaceCorruptionHandler
 import com.encourage.app.proto.McpServers
 import com.encourage.app.skills.SkillManager
 import com.encourage.app.skills.SkillsProvider
@@ -255,6 +256,12 @@ internal object AgentChatTaskModule {
   fun provideMcpServersDataStore(@ApplicationContext context: Context): DataStore<McpServers> {
     return DataStoreFactory.create(
       serializer = McpServersSerializer,
+      // 【P0 兜底】MCP 服务器清单损坏时先备份再回落空清单。
+      // 没有这个 handler 时，文件一坏就是「开屏无限崩溃、只能清数据」。
+      corruptionHandler =
+        backupReplaceCorruptionHandler(context, "mcp_servers.pb") {
+          McpServers.getDefaultInstance()
+        },
       produceFile = { context.dataStoreFile("mcp_servers.pb") },
     )
   }

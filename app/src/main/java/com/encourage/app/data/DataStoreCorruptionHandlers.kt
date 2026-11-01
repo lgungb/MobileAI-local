@@ -50,8 +50,29 @@ fun <T> backupReplaceCorruptionHandler(
   fileName: String,
   produceNewData: () -> T,
 ): ReplaceFileCorruptionHandler<T> =
+  backupReplaceCorruptionHandler(
+    source = context.dataStoreFile(fileName),
+    fileName = fileName,
+    produceNewData = produceNewData,
+  )
+
+/**
+ * 同上，但由调用方直接给出文件路径。
+ *
+ * 有些 store 并不在 `files/datastore/` 下（例如 `NotificationScheduleManager` 把
+ * `scheduled_notifications.pb` 直接放在 `filesDir`）。用 [context] 版本会按
+ * `dataStoreFile()` 去找而找不到文件 → 备份静默失效、只剩默认值兜底。
+ *
+ * @param source 该 DataStore 实际落盘的文件。
+ * @param fileName 仅用于备份文件命名与日志（一般等于 `source.name`）。
+ */
+fun <T> backupReplaceCorruptionHandler(
+  source: File,
+  fileName: String,
+  produceNewData: () -> T,
+): ReplaceFileCorruptionHandler<T> =
   ReplaceFileCorruptionHandler {
-    backupCorruptedFile(context = context, fileName = fileName)
+    backupCorruptedFile(source = source, fileName = fileName)
     produceNewData()
   }
 
@@ -60,9 +81,8 @@ fun <T> backupReplaceCorruptionHandler(
  *
  * 全程 try-catch：备份只是「尽力而为」，不能影响启动流程。
  */
-private fun backupCorruptedFile(context: Context, fileName: String) {
+private fun backupCorruptedFile(source: File, fileName: String) {
   try {
-    val source = context.dataStoreFile(fileName)
     if (!source.exists()) {
       Log.w(TAG, "Corrupted '$fileName' not found on disk; skip backup.")
       return

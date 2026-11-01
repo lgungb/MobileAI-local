@@ -491,10 +491,14 @@ fun ChatView(
   }
 
   // Initialize model when model/download state changes.
-  val curDownloadStatus = modelManagerUiState.modelDownloadStatus[selectedModel.name]
-  LaunchedEffect(curDownloadStatus, selectedModel.name) {
+  //
+  // 【key 只取状态枚举】ModelDownloadStatus 是 data class，下载进度每帧都会替换整个
+  // map → curDownloadStatus 引用变化 → 这个 effect 被反复重启并重复调用 initializeModel。
+  // 收敛成「状态枚举 + 模型名」，只在真正需要初始化时才触发。
+  val downloadState = modelManagerUiState.modelDownloadStatus[selectedModel.name]?.status
+  LaunchedEffect(downloadState, selectedModel.name) {
     if (!navigatingUp) {
-      if (curDownloadStatus?.status == ModelDownloadStatusType.SUCCEEDED) {
+      if (downloadState == ModelDownloadStatusType.SUCCEEDED) {
         Log.d(TAG, "Initializing model '${selectedModel.name}' from ChatView launched effect")
         modelManagerViewModel.initializeModel(context, task = task, model = selectedModel)
       }

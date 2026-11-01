@@ -22,6 +22,7 @@ import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.Serializer
+import com.encourage.app.data.backupReplaceCorruptionHandler
 import com.encourage.app.proto.ScheduledNotification
 import com.encourage.app.proto.ScheduledNotifications
 import com.google.protobuf.InvalidProtocolBufferException
@@ -49,6 +50,15 @@ constructor(@ApplicationContext private val context: Context) {
   private val dataStore: DataStore<ScheduledNotifications> =
     DataStoreFactory.create(
       serializer = ScheduledNotificationsSerializer,
+      // 【P0 兜底】这个 store 不在 files/datastore/ 下（直接放 filesDir），
+      // 所以用 file 版本定位，保证损坏时能真的备份出 .corrupt 文件而不是静默失效。
+      corruptionHandler =
+        backupReplaceCorruptionHandler(
+          source = File(context.filesDir, "scheduled_notifications.pb"),
+          fileName = "scheduled_notifications.pb",
+        ) {
+          ScheduledNotifications.getDefaultInstance()
+        },
       produceFile = { File(context.filesDir, "scheduled_notifications.pb") },
     )
   private val TAG = "NotificationScheduleManager"

@@ -56,7 +56,12 @@ import io.ktor.utils.io.write
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -68,6 +73,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 private const val TAG = "AGLocalApiServer"
+
+/** 设置变更合并窗口：避免端口 / Token 逐字符输入时反复重启服务器。 */
+private const val SETTINGS_APPLY_DEBOUNCE_MS = 400L
 
 /** 解析后的 OpenAI 聊天请求。 */
 data class ChatCompletionRequest(
@@ -97,8 +105,21 @@ constructor(
 
   private var server: EmbeddedServer<*, *>? = null
 
-  @Volatile var isRunning: Boolean = false
-    private set
+  /** 运行状态的响应式来源：设置页直接订阅，避免每秒轮询。 */
+  private val _isRunning = MutableStateFlow(false)
+  val isRunningState: StateFlow<Boolean> = _isRunning.asStateFlow()
+
+  /** 兼容旧调用方的同步读取；与 [isRunningState] 同源，不会出现两份状态不一致。 */
+  val isRunning: Boolean
+    get() = _isRunning.value
+
+  /**
+   * 端侧模型不支持并发推理：同一时刻只放行一个请求。
+   *
+   * 否则局域网多客户端同时调用会抢占同一个模型 runtime，轻则上下文串台，
+   * 重则 OOM / 闪退。抢不到许可的请求直接返回 429，由调用方重试。
+   */
+  private val inferencePermit = Semaphore(permits = 1)
 
   /** 当前生效端口（供设置页显示状态）。 */
   @Volatile var currentPort: Int = DEFAULT_SERVER_PORT
@@ -119,7 +140,7 @@ constructor(
     // 就绝不启动 Ktor，仅记日志返回，保证 App 不因本地服务崩溃。
     if (!canBind(host, port)) {
       Log.e(TAG, "Local API server cannot bind $host:$port (permission denied or port in use); not started.")
-      isRunning = false
+      _isRunning.value = false
       return
     }
 
@@ -149,12 +170,12 @@ constructor(
           }
         }
       server?.start(wait = false)
-      isRunning = true
+      _isRunning.value = true
       currentPort = port
       Log.i(TAG, "Local API server started on $host:$port")
     } catch (e: Exception) {
       Log.e(TAG, "Failed to start local API server", e)
-      isRunning = false
+      _isRunning.value = false
     }
   }
 
@@ -190,7 +211,7 @@ constructor(
       Log.w(TAG, "Error stopping server", e)
     }
     server = null
-    isRunning = false
+    _isRunning.value = false
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -329,11 +350,27 @@ constructor(
       return
     }
 
-    val query = buildQuery(request)
-    if (request.stream) {
-      streamCompletion(call, model, query)
-    } else {
-      nonStreamCompletion(call, model, query)
+    // 【并发限流】端侧模型是单实例、不支持并发推理。局域网多客户端同时请求时会抢占
+    // 同一个 runtime（串台 / OOM）。这里用信号量串行化，抢不到直接 429，让调用方重试。
+    if (!inferencePermit.tryAcquire()) {
+      call.respondText(
+        """{"error":{"message":"Model is busy. Please retry later.","type":"rate_limit_error","code":"model_busy"}}""",
+        ContentType.Application.Json,
+        status = HttpStatusCode.TooManyRequests,
+      )
+      return
+    }
+
+    try {
+      val query = buildQuery(request)
+      if (request.stream) {
+        streamCompletion(call, model, query)
+      } else {
+        nonStreamCompletion(call, model, query)
+      }
+    } finally {
+      // 无论正常结束、抛异常还是客户端断开，都必须归还许可，否则服务会永久卡死在 429。
+      inferencePermit.release()
     }
   }
 
@@ -499,21 +536,28 @@ constructor(
   private val apiServer: LocalApiServer,
 ) {
   /** 应用启动时调用一次：订阅配置，自动启停。 */
+  // debounce 在 kotlinx-coroutines 1.9 仍属 FlowPreview API，显式 opt-in 以消除编译警告。
+  @OptIn(kotlinx.coroutines.FlowPreview::class)
   fun initialize(scope: kotlinx.coroutines.CoroutineScope) {
     scope.launch {
       try {
-        repository.settings.collect { settings ->
-          try {
-            if (settings.enabled) {
-              apiServer.start(settings)
-            } else {
-              apiServer.stop()
+        repository.settings
+          // 【防抖】端口 / Token 在设置页是逐字符输入的，每敲一个字符 settings 就变一次。
+          // 不防抖等于「每输入一个字符就 stop + 重建一次 Ktor」：端口短暂不可用、白耗资源。
+          // 合并到 400ms 后只按最终配置重启一次。
+          .debounce(SETTINGS_APPLY_DEBOUNCE_MS)
+          .collect { settings ->
+            try {
+              if (settings.enabled) {
+                apiServer.start(settings)
+              } else {
+                apiServer.stop()
+              }
+            } catch (e: Exception) {
+              // 【防闪退】服务启停的任何异常都不应导致应用崩溃，仅记录日志。
+              Log.e(TAG, "Local API server start/stop failed, ignored.", e)
             }
-          } catch (e: Exception) {
-            // 【防闪退】服务启停的任何异常都不应导致应用崩溃，仅记录日志。
-            Log.e(TAG, "Local API server start/stop failed, ignored.", e)
           }
-        }
       } catch (e: Exception) {
         Log.e(TAG, "Local API server settings collection failed, ignored.", e)
       }

@@ -53,15 +53,31 @@ class GalleryApplication : Application() {
           throwable.stackTraceToString().take(8000)
       DebugLog.fatal("UncaughtException", errorInfo)
       Log.e(TAG, "Uncaught exception in thread: ${thread.name}", throwable)
+      var crashPageStarted = false
       try {
         CrashDisplayActivity.start(this@GalleryApplication, errorInfo)
-        // 延迟让 Activity 启动，然后杀死当前进程（避免状态混乱）
-        Thread.sleep(500)
-        android.os.Process.killProcess(android.os.Process.myPid())
-        Runtime.getRuntime().exit(10)
+        crashPageStarted = true
       } catch (e: Throwable) {
-        // 如果崩溃显示页也启动失败，交给默认处理器
+        // 崩溃显示页也启动失败（例如崩溃发生在系统资源极度紧张时），交回系统默认处理器。
         defaultHandler?.uncaughtException(thread, throwable)
+      }
+      if (crashPageStarted) {
+        // 【不要阻塞崩溃线程】原先这里是 Thread.sleep(500) 后再杀进程。
+        // 若崩溃发生在主线程，sleep 会把主线程睡住，崩溃页反而拿不到 Looper 调度；
+        // 改为独立线程延时退出，崩溃线程立刻返回，让崩溃页有机会绘制。
+        Thread(
+          {
+            try {
+              Thread.sleep(800)
+            } catch (ignored: InterruptedException) {
+              // 被中断就直接往下走，仍然要保证进程退出
+            }
+            android.os.Process.killProcess(android.os.Process.myPid())
+            Runtime.getRuntime().exit(10)
+          },
+          "crash-exit",
+        )
+          .start()
       }
     }
 

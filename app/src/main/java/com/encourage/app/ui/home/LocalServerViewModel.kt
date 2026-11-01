@@ -21,11 +21,9 @@ import com.encourage.app.data.server.LocalServerSettings
 import com.encourage.app.data.server.LocalApiServer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -46,14 +44,8 @@ constructor(
       initialValue = LocalServerSettings(),
     )
 
-  /** 服务是否正在运行（显示状态用；LocalApiServer.isRunning 是 @Volatile 字段，轮询读取）。 */
-  val isRunning: StateFlow<Boolean> =
-    flow {
-      while (true) {
-        emit(apiServer.isRunning)
-        kotlinx.coroutines.delay(1_000)
-      }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), apiServer.isRunning)
+  /** 服务是否正在运行（直接订阅服务内部状态，零轮询）。 */
+  val isRunning: StateFlow<Boolean> = apiServer.isRunningState
 
   /** 切换总开关。 */
   fun setEnabled(enabled: Boolean) {

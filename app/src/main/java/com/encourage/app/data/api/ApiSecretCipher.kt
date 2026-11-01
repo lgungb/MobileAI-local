@@ -34,30 +34,53 @@ private const val GCM_TAG_LENGTH_BITS = 128
 @Singleton
 class ApiSecretCipher @Inject constructor() {
 
-  /** 获取（必要时生成）Keystore 中的密钥。 */
-  private fun obtainKey(): SecretKey? =
-    try {
-      val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-      (keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey
-        ?: run {
-          val generator =
-            KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
-          generator.init(
-            KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-              )
-              .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-              .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-              .setKeySize(256)
-              .build()
-          )
-          generator.generateKey()
-        }
-    } catch (e: Exception) {
-      Log.e(TAG, "Failed to obtain Keystore key", e)
-      null
+  /**
+   * 已取得的 Keystore 密钥缓存。
+   *
+   * 为什么必须缓存：Keystore 的 `load()` + `getEntry()` 是硬件 I/O，而
+   * `ApiProviderRepository` 的 `configs` / `activeConfig` 两个 Flow 每次 DataStore 刷新
+   * 都会把所有 API 配置解密一遍。不缓存 = 每次刷新都要重开 KeyStore。
+   *
+   * 失效场景（用户改锁屏 / 系统清空密钥）由 [encrypt] / [decrypt] 的 try-catch 兜底。
+   */
+  @Volatile private var cachedKey: SecretKey? = null
+
+  /**
+   * 获取（必要时生成）Keystore 中的密钥；首次成功后缓存复用。
+   *
+   * `@Synchronized` 防止并发首次调用时重复 `generateKey()`（会覆盖旧密钥导致老密文解不开）。
+   */
+  @Synchronized
+  private fun obtainKey(): SecretKey? {
+    cachedKey?.let {
+      return it
     }
+    val key =
+      try {
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+        (keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey
+          ?: run {
+            val generator =
+              KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
+            generator.init(
+              KeyGenParameterSpec.Builder(
+                  KEY_ALIAS,
+                  KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .build()
+            )
+            generator.generateKey()
+          }
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to obtain Keystore key", e)
+        null
+      }
+    cachedKey = key
+    return key
+  }
 
   /** 加密；入参为空则原样返回空串；失败时降级返回原文。 */
   fun encrypt(plainText: String): String {
