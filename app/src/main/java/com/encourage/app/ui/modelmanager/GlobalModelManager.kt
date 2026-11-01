@@ -106,8 +106,10 @@ import com.encourage.app.ui.common.tos.TosViewModel
 import com.encourage.app.ui.home.VoiceSettingsDialog
 import kotlin.text.endsWith
 import kotlin.text.lowercase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "AGGlobalMM"
 
@@ -152,7 +154,16 @@ fun GlobalModelManager(
   val promoId = "gm4_banner"
   var showPromo by remember { mutableStateOf(false) }
   LaunchedEffect(Unit) {
-    showPromo = !viewModel.dataStoreRepository.hasViewedPromo(promoId = promoId)
+    // 【P0-2】仓库方法是同步 + runBlocking，直接在主线程调度器里调用会卡住首帧，挪到 IO。
+    showPromo =
+      try {
+        withContext(Dispatchers.IO) {
+          !viewModel.dataStoreRepository.hasViewedPromo(promoId = promoId)
+        }
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to read promo state.", e)
+        false
+      }
   }
 
   val processModelUri: (Uri, Boolean) -> Unit = { uri, isWebImport ->

@@ -17,6 +17,7 @@
 package com.encourage.app.ui.benchmark
 
 import android.content.ClipData
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -107,8 +108,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -155,12 +158,29 @@ fun BenchmarkResultsViewer(
 
   // Show "benchmark comparison help" bottom sheet when there are multiple results available.
   LaunchedEffect(filteredResults.size) {
-    if (
-      filteredResults.size > 1 && !viewModel.dataStoreRepository.getHasSeenBenchmarkComparisonHelp()
-    ) {
-      delay(500)
-      showBenchmarkComparisonHelpBottomSheet = true
-      viewModel.dataStoreRepository.setHasSeenBenchmarkComparisonHelp(true)
+    if (filteredResults.size > 1) {
+      // 【P0-2】仓库读取是同步 + runBlocking，挪到 IO，避免阻塞主线程。
+      val hasSeenHelp =
+        try {
+          withContext(Dispatchers.IO) {
+            viewModel.dataStoreRepository.getHasSeenBenchmarkComparisonHelp()
+          }
+        } catch (e: Exception) {
+          Log.e("AGBenchmarkResults", "Failed to read benchmark help flag.", e)
+          // 读取失败按「已看过」处理，避免反复弹窗打扰。
+          true
+        }
+      if (!hasSeenHelp) {
+        delay(500)
+        showBenchmarkComparisonHelpBottomSheet = true
+        try {
+          withContext(Dispatchers.IO) {
+            viewModel.dataStoreRepository.setHasSeenBenchmarkComparisonHelp(true)
+          }
+        } catch (e: Exception) {
+          Log.e("AGBenchmarkResults", "Failed to persist benchmark help flag.", e)
+        }
+      }
     }
   }
 

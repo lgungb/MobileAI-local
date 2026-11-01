@@ -110,6 +110,8 @@ import com.encourage.app.ui.llmchat.LlmChatViewModelBase
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -432,6 +434,41 @@ fun ChatView(
         profileId = boundProfileId,
         context = context,
       )
+    }
+  }
+
+  // 【P0-4】生成过程中的节流落盘。
+  //
+  // 上面的 effect 只在「生成结束」时保存。如果生成到一半进程被系统杀掉、或发生崩溃，
+  // 这一整轮对话会全部丢失。这里补一个过程中的兜底快照：
+  // - 每 3 秒最多写一次盘，避免频繁全量序列化；
+  // - 只有正文长度变化时才写，避免重复落盘同样的内容；
+  // - 注意必须从 `viewModel.uiState.value` 实时读取消息，不能用组合期捕获的
+  //   `currentMessages`（那是启动瞬间的快照，之后不会更新）。
+  LaunchedEffect(uiState.inProgress, viewModel.currentSessionId) {
+    if (!uiState.inProgress) return@LaunchedEffect
+    val intervalMs = 3_000L
+    var lastSavedLength = -1
+    while (isActive) {
+      delay(intervalMs)
+      val messages = viewModel.uiState.value.messagesByModel[selectedModel.name] ?: emptyList()
+      if (messages.isEmpty()) continue
+      val textLength = (messages.lastOrNull() as? ChatMessageText)?.content?.length ?: 0
+      if (textLength == lastSavedLength) continue
+      lastSavedLength = textLength
+      try {
+        viewModel.saveSession(
+          sessionId = viewModel.currentSessionId,
+          messages = messages,
+          originalModel = selectedModel.name,
+          taskId = task.id,
+          profileId = boundProfileId,
+          context = context,
+        )
+      } catch (e: Exception) {
+        // 节流落盘失败不影响生成，只记日志；结束时的正式保存仍会兜底。
+        Log.w(TAG, "Autosave during generation failed.", e)
+      }
     }
   }
   var navigatingUp by remember { mutableStateOf(false) }

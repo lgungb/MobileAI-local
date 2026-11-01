@@ -17,6 +17,7 @@
 package com.encourage.app.customtasks.agentchat
 
 import android.os.Bundle
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -117,8 +118,10 @@ import com.encourage.app.ui.common.FloatingBanner
 import com.encourage.app.ui.common.GalleryWebView
 import com.encourage.app.ui.theme.customColors
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class AddSkillOptionType {
   FeaturedList,
@@ -739,12 +742,21 @@ fun SkillManagerBottomSheet(
   if (showSecretEditorDialog) {
     val skillState = uiState.skills.getOrNull(skillToEditIndex)
     skillState?.let {
-      var curSecret by remember {
-        mutableStateOf(
-          skillManagerViewModel.skillManager.dataStoreRepository.readSecret(
-            getSkillSecretKey(skillName = it.skill.name)
-          ) ?: ""
-        )
+      // 【P0-2】readSecret 内部是 runBlocking，不能在组合期直接读（会卡住首帧）。
+      // 先用空串占位，再异步补齐；用技能名做 key，切换技能时重置。
+      var curSecret by remember(it.skill.name) { mutableStateOf("") }
+      LaunchedEffect(it.skill.name) {
+        curSecret =
+          try {
+            withContext(Dispatchers.IO) {
+              skillManagerViewModel.skillManager.dataStoreRepository.readSecret(
+                getSkillSecretKey(skillName = it.skill.name)
+              ) ?: ""
+            }
+          } catch (e: Exception) {
+            Log.e(TAG, "Failed to read secret for skill '${it.skill.name}'.", e)
+            ""
+          }
       }
       SecretEditorDialog(
         title = stringResource(R.string.edit_secret),

@@ -19,6 +19,7 @@ package com.encourage.app
 import android.app.Application
 import android.util.Log
 import com.encourage.app.data.DataStoreRepository
+import com.encourage.app.data.conversation.SessionMigrator
 import com.encourage.app.data.server.LocalServerService
 import com.encourage.app.notifications.NotificationScheduleManager
 import com.encourage.app.ui.theme.ThemeSettings
@@ -27,6 +28,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class GalleryApplication : Application() {
@@ -34,6 +36,7 @@ class GalleryApplication : Application() {
   @Inject lateinit var dataStoreRepository: DataStoreRepository
   @Inject lateinit var notificationScheduleManager: NotificationScheduleManager
   @Inject lateinit var localServerService: LocalServerService
+  @Inject lateinit var sessionMigrator: SessionMigrator
 
   private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -99,6 +102,26 @@ class GalleryApplication : Application() {
 
     // M4：本地 API Server 自动启停（监听配置 Flow）。
     localServerService.initialize(applicationScope)
+
+    // 【P1 会话文件化 · 第一步】把旧 user_data.pb 里的会话拆成独立文件 + 轻量索引。
+    //
+    // 只写不改：迁移**不会**清空 UserData.chat_sessions，读路径仍走旧逻辑，
+    // 所以这一步零风险、可随时回退（备份在 files/migration_backup/）。
+    // 放在后台协程里，任何异常只记日志，绝不影响启动。
+    applicationScope.launch {
+      try {
+        val result = sessionMigrator.migrateIfNeeded()
+        if (!result.alreadyDone) {
+          DebugLog.i(
+            TAG,
+            "会话文件化迁移完成：成功 ${result.migrated} 条，跳过 ${result.skipped} 条，" +
+              "失败 ${result.failed} 条，备份 ${result.backupPath ?: "无"}",
+          )
+        }
+      } catch (e: Exception) {
+        Log.e(TAG, "Session file migration failed.", e)
+      }
+    }
 
     // Load saved theme.
     ThemeSettings.themeOverride.value = dataStoreRepository.readTheme()

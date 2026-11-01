@@ -112,9 +112,11 @@ import com.encourage.app.ui.theme.customColors
 import com.google.ai.edge.litertlm.ToolProvider
 import com.google.common.io.BaseEncoding
 import java.security.MessageDigest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "AGTinyGarden"
 private const val ASSETS_BASE_URL = "https://appassets.androidplatform.net"
@@ -535,10 +537,25 @@ fun MainUi(
                       Log.d(TAG, "webview finished loading")
 
                       // Show help on first launch.
-                      if (!viewModel.dataStoreRepository.getHasRunTinyGarden()) {
-                        Log.d(TAG, "First time running Tiny Garden. Showing help screen...")
-                        viewModel.dataStoreRepository.setHasRunTinyGarden(true)
-                        scope.launch {
+                      // 【P0-2】getHasRunTinyGarden / setHasRunTinyGarden 内部是 runBlocking，
+                      // 这里处在 WebView 回调（主线程），先挪到 IO 再判断，避免首次进入顿一下。
+                      scope.launch {
+                        val alreadyRan =
+                          try {
+                            withContext(Dispatchers.IO) {
+                              val ran = viewModel.dataStoreRepository.getHasRunTinyGarden()
+                              if (!ran) {
+                                viewModel.dataStoreRepository.setHasRunTinyGarden(true)
+                              }
+                              ran
+                            }
+                          } catch (e: Exception) {
+                            Log.e(TAG, "Failed to read tiny garden first-run flag.", e)
+                            // 读取失败按「跑过」处理，避免每次加载都弹帮助。
+                            true
+                          }
+                        if (!alreadyRan) {
+                          Log.d(TAG, "First time running Tiny Garden. Showing help screen...")
                           delay(1000)
                           webViewRef
                             ?.runCatching { evaluateJavascript("tinyGarden.showHelp()", null) }

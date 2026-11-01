@@ -688,7 +688,10 @@ constructor(
       // 每个模型独立记忆自己的后端，切换对话时各自用各自的，避免「A 模型用 GPU、
       // B 模型用 NPU」的后端设置互相串，导致重新加载/卡死/闪退。
       // 仅在用户未在当前 configValues 里显式设置过 accelerator 时注入（优先用户当前选择）。
-      val rememberedAccelerator = dataStoreRepository.readModelAccelerator(model.name)
+      // 【P0-2】readModelAccelerator 内部是 runBlocking，而这里处在 viewModelScope 的
+      // 主线程调度上，必须切到 IO，否则每次加载模型前都会先卡一下主线程。
+      val rememberedAccelerator =
+        withContext(Dispatchers.IO) { dataStoreRepository.readModelAccelerator(model.name) }
       if (rememberedAccelerator.isNotEmpty()) {
         val curAccelerator = model.configValues[ConfigKeys.ACCELERATOR.label] as? String
         // 若当前配置里没有 accelerator，或仍是默认值（用户没主动改过），则用记忆的后端。
