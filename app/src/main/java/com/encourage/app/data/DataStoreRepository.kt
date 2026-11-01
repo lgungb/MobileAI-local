@@ -177,6 +177,15 @@ interface DataStoreRepository {
 
   /** 【N8】读取某个模型记忆的后端；无记忆时返回空串（走模型自身默认）。 */
   fun readModelAccelerator(modelName: String): String
+
+  /**
+   * 【N9】一次性读出「所有模型 → 记忆后端」的映射（modelName → Accelerator.label）。
+   *
+   * 为什么需要它：模型列表每次刷新都会走 `Model.preProcess()` 把 `configValues` 重置成默认值，
+   * 以前只靠初始化模型时逐个读回后端，导致「列表显示默认后端、引擎却在用记忆后端」。
+   * 改为在装配模型列表时一次性读取并回填，显示与实际才能始终一致。
+   */
+  fun readAllModelAccelerators(): Map<String, String>
 }
 
 /** Repository for managing data using Proto DataStore. */
@@ -591,6 +600,13 @@ class DefaultDataStoreRepository(
     return runBlocking {
       val settings = dataStore.data.first()
       settings.modelAcceleratorsMap[modelName] ?: ""
+    }
+  }
+
+  override fun readAllModelAccelerators(): Map<String, String> {
+    return runBlocking {
+      // 复制成不可变 Map，避免把 DataStore 内部结构泄漏给调用方。
+      dataStore.data.first().modelAcceleratorsMap.toMap()
     }
   }
 }

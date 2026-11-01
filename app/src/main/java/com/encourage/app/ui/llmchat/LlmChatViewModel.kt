@@ -106,8 +106,15 @@ private val PROFILE_CONFIG_KEYS: List<ConfigKey> =
     ConfigKeys.DEFAULT_TOPP,
     ConfigKeys.DEFAULT_TEMPERATURE,
     ConfigKeys.ENABLE_THINKING,
-    ConfigKeys.ACCELERATOR,
-    ConfigKeys.VISION_ACCELERATOR,
+    // 【N9】ACCELERATOR / VISION_ACCELERATOR 刻意**不在此列**。
+    //
+    // 这两个是「设备级运行后端」，不是「本轮对话的采样参数」：
+    // - 纳入记录后，进任何一条老会话都会把模型后端改成那条记录创建时的值
+    //   （这就是「换个对话后端就变了」的直接原因）；
+    // - 而且它只在模型重新初始化时生效，已初始化时只改显示不改引擎
+    //   （这就是「显示 NPU、实际跑 CPU」的直接原因）。
+    // 正确语义：后端由「每个模型记忆的值」（UserData.settings.modelAccelerators）唯一决定，
+    // 与具体会话无关。旧记录里残留的 accelerator 键会在应用时被跳过（有日志），无害。
   )
 
 /** 【T05-②】记录键（id）→ 运行时键（label）。 */

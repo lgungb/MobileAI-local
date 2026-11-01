@@ -357,9 +357,24 @@ data class Model(
   }
 
   fun preProcess() {
+    // 【N9】先把已有的后端选择记下来：本函数会被反复调用（模型列表每次重建都会走一遍），
+    // 若无条件重置，用户刚选的 GPU/NPU 就会被默认值（accelerators[0]，常见是 CPU）冲掉。
+    val previousAccelerator = configValues[ConfigKeys.ACCELERATOR.label] as? String
+
     val configValues: MutableMap<String, Any> = mutableMapOf()
     for (config in this.configs) {
       configValues[config.key.label] = config.defaultValue
+    }
+    // 该模型确实提供后端选项、且旧值仍在可选项内时，保留旧值。
+    if (!previousAccelerator.isNullOrEmpty()) {
+      val options =
+        this.configs
+          .firstOrNull { it.key.id == ConfigKeys.ACCELERATOR.id }
+          ?.let { if (it is SegmentedButtonConfig) it.options else null }
+          .orEmpty()
+      if (options.isEmpty() || previousAccelerator in options) {
+        configValues[ConfigKeys.ACCELERATOR.label] = previousAccelerator
+      }
     }
     this.configValues = configValues
     this.totalBytes = this.sizeInBytes + this.extraDataFiles.sumOf { it.sizeInBytes }

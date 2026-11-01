@@ -49,6 +49,7 @@ import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.data.NumberSliderConfig
 import com.encourage.app.data.RuntimeType
 import com.encourage.app.data.SOC
+import com.encourage.app.data.SegmentedButtonConfig
 import com.encourage.app.data.SystemPromptRepository
 import com.encourage.app.data.TMP_FILE_EXT
 import com.encourage.app.data.Task
@@ -222,6 +223,19 @@ constructor(
   protected val _uiState = MutableStateFlow(createEmptyUiState())
   open val uiState = _uiState.asStateFlow()
 
+  /**
+   * 【N9】「模型名 → 用户上次选的运行后端」的内存快照。
+   *
+   * 为什么要有它：`Model.preProcess()` 在每次装配模型列表时都会把 `configValues` 重置成
+   * 模型默认值（`accelerators[0]`，常见就是 CPU）。以前只在「初始化模型」时才去读回记忆值，
+   * 于是出现三类现象：
+   *   - 重启后后端变回默认（初始化前 UI 已经显示了默认值）；
+   *   - 换对话/换模型时后端跳成别的值（各自读回各自默认）；
+   *   - 显示的是默认值、引擎实际用的却是上一次的记忆值（两边数据源不同）。
+   * 现在改为：装配列表时一次性读进来，`preProcess()` 之后立刻回填，UI 与引擎同源。
+   */
+  private var savedAccelerators: Map<String, String> = emptyMap()
+
   init {
     // 【M5】订阅外部 API 配置：配置生效时注入「云端虚拟模型」，让用户无需下载
     // 本地模型即可进入对话页；配置失效（关闭总开关/删除配置）时自动移除。
@@ -357,6 +371,9 @@ constructor(
     for (task in curTasks) {
       for (model in task.models) {
         model.preProcess()
+        // 【N9】preProcess 会把 configValues 重置成模型默认后端，这里立刻回填用户记忆值，
+        // 否则列表显示的是默认后端，与引擎实际使用的后端不一致。
+        applySavedAccelerator(model)
       }
       // Move the model that is best for this task to the front.
       val bestModel = task.models.find { it.bestForTaskIds.contains(task.id) }
@@ -365,6 +382,33 @@ constructor(
         task.models.add(0, bestModel)
       }
     }
+  }
+
+  /**
+   * 【N9】把「用户上次为这个模型选的后端」回填到 `model.configValues`。
+   *
+   * 只在模型确实提供该选项时才写入：模型 allowlist 更新后可能删掉了某个后端
+   * （例如某模型不再支持 NPU），历史记忆值若直接塞进去，会让分段按钮没有匹配项、
+   * 甚至被引擎当作未知后端回退。这种情况直接忽略并打日志。
+   */
+  private fun applySavedAccelerator(model: Model) {
+    val saved = savedAccelerators[model.name]
+    if (saved.isNullOrEmpty()) return
+
+    val options =
+      model.configs
+        .firstOrNull { it.key.id == ConfigKeys.ACCELERATOR.id }
+        ?.let { if (it is SegmentedButtonConfig) it.options else null }
+        .orEmpty()
+    if (options.isNotEmpty() && saved !in options) {
+      Log.w(TAG, "Ignoring saved accelerator '$saved' for '${model.name}': not supported.")
+      return
+    }
+    if (model.configValues[ConfigKeys.ACCELERATOR.label] == saved) return
+
+    model.configValues =
+      model.configValues.toMutableMap().apply { put(ConfigKeys.ACCELERATOR.label, saved) }
+    Log.d(TAG, "Model '${model.name}' restored saved accelerator '$saved'.")
   }
 
   fun updateConfigValuesUpdateTrigger() {
@@ -404,9 +448,25 @@ constructor(
   /**
    * 【N8】持久化某个模型的默认运行后端（CPU/GPU/NPU/TPU）。
    * 每个模型独立记忆自己的后端，切换对话时各自用各自的，互不污染。
+   *
+   * 【N9】内存快照同步更新、磁盘异步写：
+   * 调用方（配置对话框点「确定」）紧接着可能立刻触发 `initializeModel(force = true)`，
+   * 若等磁盘写完再返回，初始化会读到旧值；因此内存先落，磁盘后台补。
    */
   fun saveModelAccelerator(model: Model, accelerator: String) {
-    dataStoreRepository.saveModelAccelerator(modelName = model.name, accelerator = accelerator)
+    savedAccelerators =
+      if (accelerator.isEmpty()) {
+        savedAccelerators - model.name
+      } else {
+        savedAccelerators + (model.name to accelerator)
+      }
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        dataStoreRepository.saveModelAccelerator(modelName = model.name, accelerator = accelerator)
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to persist accelerator for model '${model.name}'.", e)
+      }
+    }
     Log.d(TAG, "Saved accelerator '$accelerator' for model '${model.name}'.")
   }
 
@@ -690,21 +750,20 @@ constructor(
       // 仅在用户未在当前 configValues 里显式设置过 accelerator 时注入（优先用户当前选择）。
       // 【P0-2】readModelAccelerator 内部是 runBlocking，而这里处在 viewModelScope 的
       // 主线程调度上，必须切到 IO，否则每次加载模型前都会先卡一下主线程。
+      //
+      // 【N9】优先用装配模型列表时读进来的内存快照；没有命中才回落单条读取。
       val rememberedAccelerator =
-        withContext(Dispatchers.IO) { dataStoreRepository.readModelAccelerator(model.name) }
+        savedAccelerators[model.name]?.takeIf { it.isNotEmpty() }
+          ?: withContext(Dispatchers.IO) { dataStoreRepository.readModelAccelerator(model.name) }
       if (rememberedAccelerator.isNotEmpty()) {
-        val curAccelerator = model.configValues[ConfigKeys.ACCELERATOR.label] as? String
-        // 若当前配置里没有 accelerator，或仍是默认值（用户没主动改过），则用记忆的后端。
-        if (curAccelerator.isNullOrEmpty() || curAccelerator == Accelerator.GPU.label) {
-          model.configValues =
-            model.configValues.toMutableMap().apply {
-              put(ConfigKeys.ACCELERATOR.label, rememberedAccelerator)
-            }
-          Log.d(
-            TAG,
-            "Model '${model.name}' restored remembered accelerator '$rememberedAccelerator'.",
-          )
+        if (savedAccelerators[model.name] != rememberedAccelerator) {
+          savedAccelerators = savedAccelerators + (model.name to rememberedAccelerator)
         }
+        // 【N9】旧判断是「当前值仍为默认 GPU 才回填」，这个假设是错的：
+        // 多数模型的默认后端是 accelerators[0]（常见为 CPU 或 NPU），
+        // 于是用户手动选的 GPU 永远恢复不了 —— 这正是「重启后又变回 CPU」的根因。
+        // 这里的记忆值只会在用户主动改后端时写入，直接回填即可。
+        applySavedAccelerator(model)
       }
 
       withContext(Dispatchers.IO) {
@@ -1200,6 +1259,16 @@ constructor(
 
     viewModelScope.launch(Dispatchers.IO) {
       try {
+        // 【N9】先把「模型 → 用户选择的后端」读进内存快照。
+        // 本函数后面会调用 processTasks() → Model.preProcess()，那一步会把 configValues
+        // 重置成模型默认后端；只有先拿到快照，才能在重置后立刻回填，保证列表显示与引擎一致。
+        // 读失败时沿用旧快照（不要清空，避免一次读盘抖动把所有模型打回默认）。
+        try {
+          savedAccelerators = dataStoreRepository.readAllModelAccelerators()
+        } catch (e: Exception) {
+          Log.w(TAG, "Failed to read saved model accelerators, keeping previous snapshot.", e)
+        }
+
         // Clear existing allowlist models.
         _allowlistModels.clear()
 
@@ -1579,6 +1648,9 @@ constructor(
         runtimeType = RuntimeType.LITERT_LM,
       )
     model.preProcess()
+    // 【N9】导入模型每次都是新对象，preProcess 只能填出默认后端；
+    // 这里补上用户记忆值，保证「导入的模型」也能记住上次选的后端。
+    applySavedAccelerator(model)
 
     return model
   }
