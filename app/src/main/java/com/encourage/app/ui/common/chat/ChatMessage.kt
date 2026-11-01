@@ -63,6 +63,8 @@ open class ChatMessage(
   open val accelerator: String = "",
   open val hideSenderLabel: Boolean = false,
   open val disableBubbleShape: Boolean = false,
+  // 【N8 问题1】本条 AI 消息生成的累计 token 数（>0 时在消息下方展示）。
+  open val tokenCount: Int = 0,
 ) {
 
   open fun clone(): ChatMessage {
@@ -74,6 +76,7 @@ open class ChatMessage(
         accelerator = accelerator,
         hideSenderLabel = hideSenderLabel,
         disableBubbleShape = disableBubbleShape,
+        tokenCount = tokenCount,
       )
     return cloned
   }
@@ -121,6 +124,8 @@ open class ChatMessageText(
   override val accelerator: String = "",
   override val hideSenderLabel: Boolean = false,
   var data: Any? = null,
+  // 【N8 问题1】本条消息生成的累计 token 数。
+  override val tokenCount: Int = 0,
 ) :
   ChatMessage(
     type = ChatMessageType.TEXT,
@@ -128,6 +133,7 @@ open class ChatMessageText(
     latencyMs = latencyMs,
     accelerator = accelerator,
     hideSenderLabel = hideSenderLabel,
+    tokenCount = tokenCount,
   ) {
   override fun clone(): ChatMessageText {
     val cloned =
@@ -140,6 +146,7 @@ open class ChatMessageText(
         llmBenchmarkResult = llmBenchmarkResult,
         hideSenderLabel = hideSenderLabel,
         data = data,
+        tokenCount = tokenCount,
       )
     return cloned
   }

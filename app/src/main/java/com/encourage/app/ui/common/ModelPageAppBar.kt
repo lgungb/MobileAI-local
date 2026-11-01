@@ -231,6 +231,8 @@ fun ModelPageAppBar(
       title = stringResource(R.string.config_dialog_title),
       configs = modelConfigs,
       initialValues = model.configValues,
+      // 【模型展示】把当前会话所用模型名传进去，配置对话框顶部显示，弥补标题栏选择器已隐藏。
+      modelName = model.displayName.ifBlank { model.name },
       onDismissed = { showConfigDialog = false },
       onOk = { curConfigValues, oldSystemPrompt, newSystemPrompt ->
         // Hide config dialog.
@@ -285,6 +287,15 @@ fun ModelPageAppBar(
         val oldConfigValues = model.configValues
         model.prevConfigValues = oldConfigValues
         model.configValues = curConfigValues
+
+        // 【N8】后端（accelerator）变化时，按模型持久化其默认后端，
+        // 修复「切换对话时后端设置互相串、导致重新加载/卡死/闪退」的问题。
+        val oldAccelerator = oldConfigValues[ConfigKeys.ACCELERATOR.label] as? String
+        val newAccelerator = curConfigValues[ConfigKeys.ACCELERATOR.label] as? String
+        if (newAccelerator != null && newAccelerator != oldAccelerator) {
+          modelManagerViewModel.saveModelAccelerator(model = model, accelerator = newAccelerator)
+        }
+
         if (task.id == BuiltInTaskId.LLM_AGENT_CHAT) {
           model.agentSkillTopKAdjusted = true
           model.agentSkillTopK = curConfigValues[ConfigKeys.TOPK.label]

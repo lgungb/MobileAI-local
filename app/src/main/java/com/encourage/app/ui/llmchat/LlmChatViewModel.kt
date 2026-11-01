@@ -658,6 +658,8 @@ open class LlmChatViewModelBase(
               } else {
                 0f
               }
+            // 【N8 问题1】把本轮 token 数写到最后一条 AI 消息，供消息下方展示。
+            updateLastTextMessageTokenCount(model = model, tokenCount = tokenCount)
             _generationStats.value =
               GenerationStats(
                 tokenCount = tokenCount,
@@ -694,14 +696,22 @@ open class LlmChatViewModelBase(
     // 【M2】两条中断路径分开处理，避免互相干扰：
     // - 云端：请求跑在协程里，直接取消 Job 即可。取消后不会再有事件回调，
     //   所以 preparing 状态要在这里手动复位（本地路径是由 LoopCancelled 事件复位的）。
-    // - 本地：完全保持原有行为 —— 交给 runtimeExecutor.interrupt() 优雅收尾，
-    //   它会回调 LoopCancelled 并把 inProgress / preparing 一起复位。
+    // - 本地：交给 runtimeExecutor.interrupt() 触发后端 cancelProcess()，真正停止 token 生成。
     if (lastGenerationWasRemote) {
       setPreparing(false)
       generationJob?.cancel()
     }
+    // 【N8 问题3 修复】本地路径也必须取消 generationJob（collect 协程），
+    // 否则即使后端 cancelProcess 生效，collect 协程仍挂在后端回调上，
+    // 表现为「前端停了、后端还在跑」，切对话后再发消息会被上一个未结束的生成阻塞。
+    // 取消 Job 会触发 callbackFlow 的 awaitClose，配合后端 cancelProcess 立即停止输出。
+    generationJob?.cancel()
     generationJob = null
-    runtimeExecutor.interrupt()
+    // 本地路径：真正打断后端生成（conversation.cancelProcess），并复位 preparing。
+    if (!lastGenerationWasRemote) {
+      setPreparing(false)
+      runtimeExecutor.interrupt()
+    }
     Log.d(TAG, "Done stopping response")
   }
 

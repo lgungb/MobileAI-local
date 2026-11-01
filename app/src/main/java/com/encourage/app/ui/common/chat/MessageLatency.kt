@@ -30,9 +30,11 @@ import com.encourage.app.ui.common.humanReadableDuration
 /** Composable function to display the latency of a chat message, if available. */
 @Composable
 fun LatencyText(message: ChatMessage) {
+  // 【N8 问题1】每条 AI 消息下方显示「xx tokens · 耗时」，让用户直观看到输出量与用时。
   if (message.latencyMs >= 0) {
+    val tokenPart = if (message.tokenCount > 0) "${message.tokenCount} tokens · " else ""
     Text(
-      message.latencyMs.humanReadableDuration(),
+      tokenPart + message.latencyMs.humanReadableDuration(),
       modifier = Modifier.alpha(0.5f).testTag("latency_label"),
       style = MaterialTheme.typography.labelSmall,
     )

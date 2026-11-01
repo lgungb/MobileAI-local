@@ -136,6 +136,16 @@ interface DataStoreRepository {
 
   /** Returns the globally-selected default model id, or empty string if none set. */
   fun readDefaultModelId(): String
+
+  /**
+   * 【N8】持久化某个模型的默认运行后端（accelerator）。
+   * @param modelName Model.name；@param accelerator Accelerator.label（CPU/GPU/NPU/TPU）。
+   * accelerator 传空串表示清除该模型的记忆，回退模型自身默认后端。
+   */
+  fun saveModelAccelerator(modelName: String, accelerator: String)
+
+  /** 【N8】读取某个模型记忆的后端；无记忆时返回空串（走模型自身默认）。 */
+  fun readModelAccelerator(modelName: String): String
 }
 
 /** Repository for managing data using Proto DataStore. */
@@ -491,6 +501,27 @@ class DefaultDataStoreRepository(
     return runBlocking {
       val settings = dataStore.data.first()
       settings.defaultModelId
+    }
+  }
+
+  override fun saveModelAccelerator(modelName: String, accelerator: String) {
+    runBlocking {
+      dataStore.updateData { settings ->
+        val newMap = settings.modelAcceleratorsMap.toMutableMap()
+        if (accelerator.isEmpty()) {
+          newMap.remove(modelName)
+        } else {
+          newMap[modelName] = accelerator
+        }
+        settings.toBuilder().putAllModelAccelerators(newMap).build()
+      }
+    }
+  }
+
+  override fun readModelAccelerator(modelName: String): String {
+    return runBlocking {
+      val settings = dataStore.data.first()
+      settings.modelAcceleratorsMap[modelName] ?: ""
     }
   }
 }

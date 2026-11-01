@@ -378,33 +378,71 @@ constructor(
   }
 
   /**
-   * 【N6】设置全局默认模型：持久化到 DataStore，并刷新 uiState。
-   * 传 null 或空串表示清除默认（回退自动推导）。
+   * 【模型锁定】设置全局锁定模型：持久化到 DataStore，并刷新 uiState。
+   * 传 null 或空串表示解除锁定（回退任务默认模型）。
+   *
+   * 【锁定前提】只允许锁定「已下载」的模型（云端虚拟模型视为就绪）：
+   * 未下载的模型不允许锁定，从源头杜绝「锁定了一个没就绪的模型」这种状态。
    */
   fun setDefaultModel(model: Model?) {
+    if (model != null) {
+      val status = _uiState.value.modelDownloadStatus[model.name]?.status
+      val ready =
+        status == ModelDownloadStatusType.SUCCEEDED ||
+          model.runtimeType == RuntimeType.AICORE ||
+          model.name == CLOUD_MODEL_NAME
+      if (!ready) {
+        Log.w(TAG, "Refuse to lock model '${model.name}': not downloaded yet.")
+        return
+      }
+    }
     val id = model?.name.orEmpty()
     dataStoreRepository.saveDefaultModelId(id)
     _uiState.update { it.copy(defaultModelId = id) }
   }
 
   /**
-   * 【N6】按 task 解析该任务当前应使用的默认模型：
-   * 1. 若用户设置的全局默认模型存在于该 task 的 models 里，且已下载（或云端），直接返回；
-   * 2. 否则回退到该任务下第一个已下载（SUCCEEDED）的模型；
-   * 3. 再回退到该任务的第一个模型。
+   * 【N8】持久化某个模型的默认运行后端（CPU/GPU/NPU/TPU）。
+   * 每个模型独立记忆自己的后端，切换对话时各自用各自的，互不污染。
+   */
+  fun saveModelAccelerator(model: Model, accelerator: String) {
+    dataStoreRepository.saveModelAccelerator(modelName = model.name, accelerator = accelerator)
+    Log.d(TAG, "Saved accelerator '$accelerator' for model '${model.name}'.")
+  }
+
+  /**
+   * 按 task 解析该任务当前应使用的模型。
+   *
+   * 【模型锁定（全局强锁）语义】：
+   * 用户锁定的模型（defaultModelId）一旦设定，对**所有任务**绝对强制——任何记录、任何入口、
+   * 任何位置（包括 Tiny Garden / Mobile Actions）都用锁定模型，无视记录里原来存的 modelName、
+   * 也无视任务自己的默认模型。
+   *
+   * 「切换模型」的唯一途径是：用户在明确入口确认切换后，把 defaultModelId 改成新模型
+   * （即「锁定 = 当前正在用的模型」，切换 = 重新锁定新模型）。因此本函数不需要任何任务特判。
+   *
+   * 锁定模型一定是「已下载」的（设置锁定时已校验），所以这里直接用全局 `getModelByName`
+   * 查找并返回，不做「是否在该任务 models 列表里」的判断。
+   * 仅当没有锁定模型（defaultModelId 为空）时，才回退该任务自己的默认模型。
    */
   fun resolveDefaultModelForTask(task: Task): Model? {
     val ui = _uiState.value
     val pref = ui.defaultModelId
+
+    // 全局强锁：锁定模型存在且已下载（或云端/AICore）→ 无条件返回，无视任务与记录。
     if (pref.isNotEmpty()) {
-      val candidate = task.models.firstOrNull { it.name == pref }
-      if (candidate != null) {
-        val status = ui.modelDownloadStatus[candidate.name]?.status
-        if (status == ModelDownloadStatusType.SUCCEEDED || candidate.runtimeType == RuntimeType.AICORE) {
-          return candidate
+      val locked = getModelByName(pref)
+      if (locked != null) {
+        val status = ui.modelDownloadStatus[locked.name]?.status
+        if (
+          status == ModelDownloadStatusType.SUCCEEDED || locked.runtimeType == RuntimeType.AICORE
+        ) {
+          return locked
         }
       }
     }
+
+    // 无锁定（或锁定模型不可用）：回退该任务第一个已下载模型，再回退第一个模型。
     return task.models.firstOrNull {
       ui.modelDownloadStatus[it.name]?.status == ModelDownloadStatusType.SUCCEEDED
     } ?: task.models.firstOrNull()
@@ -628,6 +666,27 @@ constructor(
 
       // Call the model initialization function.
       val systemPrompt = SystemPromptHelper.getEffectiveSystemPrompt(systemPromptRepository, task)
+
+      // 【N8】按模型恢复其记忆的默认后端（CPU/GPU/NPU/TPU）：
+      // 每个模型独立记忆自己的后端，切换对话时各自用各自的，避免「A 模型用 GPU、
+      // B 模型用 NPU」的后端设置互相串，导致重新加载/卡死/闪退。
+      // 仅在用户未在当前 configValues 里显式设置过 accelerator 时注入（优先用户当前选择）。
+      val rememberedAccelerator = dataStoreRepository.readModelAccelerator(model.name)
+      if (rememberedAccelerator.isNotEmpty()) {
+        val curAccelerator = model.configValues[ConfigKeys.ACCELERATOR.label] as? String
+        // 若当前配置里没有 accelerator，或仍是默认值（用户没主动改过），则用记忆的后端。
+        if (curAccelerator.isNullOrEmpty() || curAccelerator == Accelerator.GPU.label) {
+          model.configValues =
+            model.configValues.toMutableMap().apply {
+              put(ConfigKeys.ACCELERATOR.label, rememberedAccelerator)
+            }
+          Log.d(
+            TAG,
+            "Model '${model.name}' restored remembered accelerator '$rememberedAccelerator'.",
+          )
+        }
+      }
+
       withContext(Dispatchers.IO) {
         getCustomTaskByTaskId(id = task.id)
           ?.initializeModelFn(

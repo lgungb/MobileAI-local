@@ -225,6 +225,33 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
     _uiState.update { it.copy(messagesByModel = newMessagesByModel) }
   }
 
+  /** 【N8 问题1】把本轮生成的 token 数写到最后一条 AI 文本消息，供消息下方展示。 */
+  fun updateLastTextMessageTokenCount(model: Model, tokenCount: Int) {
+    val newMessagesByModel = _uiState.value.messagesByModel.toMutableMap()
+    val newMessages = newMessagesByModel[model.name]?.toMutableList() ?: mutableListOf()
+    if (newMessages.isNotEmpty()) {
+      val lastMessage = newMessages.last()
+      if (lastMessage is ChatMessageText) {
+        val updated =
+          ChatMessageText(
+            content = lastMessage.content,
+            side = lastMessage.side,
+            latencyMs = lastMessage.latencyMs,
+            accelerator = lastMessage.accelerator,
+            hideSenderLabel = lastMessage.hideSenderLabel,
+            isMarkdown = lastMessage.isMarkdown,
+            llmBenchmarkResult = lastMessage.llmBenchmarkResult,
+            data = lastMessage.data,
+            tokenCount = tokenCount,
+          )
+        newMessages.removeAt(newMessages.size - 1)
+        newMessages.add(updated)
+      }
+    }
+    newMessagesByModel[model.name] = newMessages
+    _uiState.update { it.copy(messagesByModel = newMessagesByModel) }
+  }
+
   fun replaceLastMessage(model: Model, message: ChatMessage, type: ChatMessageType) {
     val newMessagesByModel = _uiState.value.messagesByModel.toMutableMap()
     val newMessages = newMessagesByModel[model.name]?.toMutableList() ?: mutableListOf()

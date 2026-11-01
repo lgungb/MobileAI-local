@@ -204,7 +204,12 @@ open class DefaultAgentRuntimeExecutor(
   }
 
   override fun interrupt() {
-    val curModel = activeSession.get()?.model ?: return
+    val session = activeSession.get()
+    if (session == null) {
+      Log.w(TAG, "interrupt() called but no active session; nothing to stop.")
+      return
+    }
+    val curModel = session.model
     Log.d(TAG, "Interrupting session for model: ${curModel.name}")
     // TODO: we need to reset the conversation in executeStream if user sends a new request.
     curModel.runtimeHelper.stopResponse(curModel)

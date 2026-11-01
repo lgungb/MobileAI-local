@@ -147,6 +147,13 @@ message Settings {
   // 【N6】全局默认模型 id（Model.name）。用户可在模型管理页设置；
   // 设置后所有对话 / 识图 / 语音新建会话默认使用该模型，不再逐对话选择。
   string default_model_id = 21;
+
+  // 【N8】每个模型的「默认运行后端」映射：key = Model.name，value = 后端名
+  // （CPU / GPU / NPU / TPU，对应 Accelerator.label）。
+  // 每个模型独立记忆自己的后端，切换对话时各自用各自的后端，互不污染；
+  // 修复「A 模型用 GPU、B 模型用 NPU，切换对话时后端设置互相串导致卡死/闪退」。
+  // 缺省（map 里无此 key）时回退到模型自身的默认后端（accelerator 配置值）。
+  map<string, string> model_accelerators = 22;
 }
 
 // 本地 API Server 配置（M4 / 需求 B2）。
