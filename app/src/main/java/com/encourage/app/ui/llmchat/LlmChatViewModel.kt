@@ -43,6 +43,7 @@ import com.encourage.app.data.Task
 import com.encourage.app.data.awaitInitialization
 import com.encourage.app.data.conversation.ConversationProfile
 import com.encourage.app.data.conversation.ConversationProfileRepository
+import com.encourage.app.data.conversation.SessionFileStore
 import com.encourage.app.proto.UserData
 import com.encourage.app.tools.ToolAction
 import com.encourage.app.ui.common.chat.ChatMessageAudioClip
@@ -170,7 +171,9 @@ open class LlmChatViewModelBase(
   private val remoteProvider: RemoteOpenAICompatProvider? = null,
   // 【T04】特调记录仓库：绑定记录后，编辑系统提示词写入记录而非全局默认值；可空便于测试。
   private val conversationProfileRepository: ConversationProfileRepository? = null,
-) : ChatViewModel(userDataDataStore) {
+  // 【P1b】会话文件存储：非空时成为会话的权威数据源（列表读索引、详情读单文件）。
+  sessionFileStore: SessionFileStore? = null,
+) : ChatViewModel(userDataDataStore, sessionFileStore) {
   private val _uiSystemPrompt = MutableStateFlow("")
   val uiSystemPrompt = _uiSystemPrompt.asStateFlow()
 
@@ -1013,6 +1016,7 @@ constructor(
   apiProviderRepository: ApiProviderRepository,
   remoteProvider: RemoteOpenAICompatProvider,
   conversationProfileRepository: ConversationProfileRepository,
+  sessionFileStore: SessionFileStore,
 ) :
 LlmChatViewModelBase(
   systemPromptRepository,
@@ -1022,6 +1026,7 @@ LlmChatViewModelBase(
   apiProviderRepository,
   remoteProvider,
   conversationProfileRepository,
+  sessionFileStore,
 )
 
 @HiltViewModel
@@ -1034,6 +1039,7 @@ constructor(
   apiProviderRepository: ApiProviderRepository,
   remoteProvider: RemoteOpenAICompatProvider,
   conversationProfileRepository: ConversationProfileRepository,
+  sessionFileStore: SessionFileStore,
 ) :
 LlmChatViewModelBase(
   systemPromptRepository,
@@ -1043,6 +1049,7 @@ LlmChatViewModelBase(
   apiProviderRepository,
   remoteProvider,
   conversationProfileRepository,
+  sessionFileStore,
 )
 
 @HiltViewModel
@@ -1055,6 +1062,7 @@ constructor(
   apiProviderRepository: ApiProviderRepository,
   remoteProvider: RemoteOpenAICompatProvider,
   conversationProfileRepository: ConversationProfileRepository,
+  sessionFileStore: SessionFileStore,
 ) :
 LlmChatViewModelBase(
   systemPromptRepository,
@@ -1064,4 +1072,5 @@ LlmChatViewModelBase(
   apiProviderRepository,
   remoteProvider,
   conversationProfileRepository,
+  sessionFileStore,
 )

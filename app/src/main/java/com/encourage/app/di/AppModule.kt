@@ -35,6 +35,7 @@ import com.encourage.app.data.DefaultDownloadRepository
 import com.encourage.app.data.DownloadRepository
 import com.encourage.app.data.backupReplaceCorruptionHandler
 import com.encourage.app.data.conversation.ConversationProfileRepository
+import com.encourage.app.data.conversation.SessionFileStore
 import com.encourage.app.proto.BenchmarkResults
 import com.encourage.app.proto.CutoutCollection
 import com.encourage.app.proto.Settings
@@ -214,8 +215,10 @@ internal object AppModule {
   fun provideConversationProfileRepository(
     @ApplicationContext context: Context,
     userDataDataStore: DataStore<UserData>,
+    // 【P1b】删记录要级联删会话文件，所以仓库需要文件层。
+    sessionFileStore: SessionFileStore,
   ): ConversationProfileRepository {
-    return ConversationProfileRepository(userDataDataStore, context)
+    return ConversationProfileRepository(userDataDataStore, context, sessionFileStore)
   }
 
   @Provides

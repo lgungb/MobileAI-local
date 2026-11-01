@@ -25,6 +25,9 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -94,6 +97,25 @@ data class SessionIndexEntry(
 class SessionFileStore @Inject constructor(@ApplicationContext private val context: Context) {
 
   private val indexMutex = Mutex()
+
+  /** 首次加载索引时用的锁，保证并发调用只读一次盘。 */
+  private val loadMutex = Mutex()
+
+  /** 索引是否已从磁盘读入内存。 */
+  @Volatile private var indexLoaded = false
+
+  private val _indexState = MutableStateFlow<List<SessionIndexEntry>>(emptyList())
+
+  /**
+   * 会话索引的内存镜像，按 [SessionIndexEntry.updatedAtMs] 倒序。
+   *
+   * UI 直接订阅它即可：会话列表**不需要**为每条会话读一次 `.pb` 文件，
+   * 只有在用户点开某条会话时才调用 [readSession] 取完整内容。
+   * 写/删会话后本 Flow 会立即推送新值，所以列表是响应式的。
+   *
+   * 初始值为空列表，调用方需确保 [ensureIndexLoaded] 已被调用（`ChatViewModel` 初始化时触发）。
+   */
+  val indexState: StateFlow<List<SessionIndexEntry>> = _indexState.asStateFlow()
 
   private val sessionsDir: File
     get() = File(context.filesDir, SESSIONS_DIR).apply { if (!exists()) mkdirs() }
@@ -190,12 +212,59 @@ class SessionFileStore @Inject constructor(@ApplicationContext private val conte
     }
 
   /**
+   * 确保索引已从磁盘加载进内存。可重复调用，只有第一次真正读盘。
+   *
+   * 建议在 `ChatViewModel` 的 `init` 里于 IO 协程调用一次。
+   */
+  suspend fun ensureIndexLoaded() {
+    if (indexLoaded) return
+    loadMutex.withLock {
+      if (indexLoaded) return@withLock
+      val entries = indexMutex.withLock { readIndexLocked() }
+      _indexState.value = entries.sortedByDescending { it.updatedAtMs }
+      indexLoaded = true
+    }
+  }
+
+  /**
    * 读取全部索引条目，按最后更新时间倒序。
    *
    * 索引某一行解析失败只跳过该行（并记日志），不影响整个列表。
    */
-  suspend fun listSessions(): List<SessionIndexEntry> = withContext(Dispatchers.IO) {
-    indexMutex.withLock { readIndexLocked().sortedByDescending { it.updatedAtMs } }
+  suspend fun listSessions(): List<SessionIndexEntry> {
+    ensureIndexLoaded()
+    return _indexState.value
+  }
+
+  /**
+   * 索引条目 → **只有元数据、不含任何消息**的 [ChatSessionProto]。
+   *
+   * 历史侧边栏只展示标题，用这个对象就够；点开某条时再 [readSession] 取全文，
+   * 避免为了画一个列表把所有会话的正文都反序列化一遍。
+   */
+  fun toLiteProto(entry: SessionIndexEntry): ChatSessionProto =
+    ChatSessionProto.newBuilder()
+      .setSessionId(entry.sessionId)
+      .setTitle(entry.title)
+      .setTimestampMs(entry.timestampMs)
+      .setOriginalModel(entry.originalModel)
+      .setTaskId(entry.taskId)
+      .setProfileId(entry.profileId)
+      .build()
+
+  /**
+   * 读取全部会话的完整内容（导出 Markdown / 备份用）。
+   *
+   * 单条读失败只跳过该条，不中断整体；返回结果按 [SessionIndexEntry.updatedAtMs] 倒序。
+   */
+  suspend fun readAllSessions(): List<ChatSessionProto> {
+    val entries = listSessions()
+    return entries.mapNotNull { entry ->
+      readSession(entry.sessionId) ?: run {
+        Log.w(TAG, "Skip unreadable session '${entry.sessionId}' on full read.")
+        null
+      }
+    }
   }
 
   // ---------------------------------------------------------------- 索引内部实现
@@ -215,18 +284,23 @@ class SessionFileStore @Inject constructor(@ApplicationContext private val conte
   }
 
   private suspend fun upsertIndex(entry: SessionIndexEntry) {
+    ensureIndexLoaded()
     indexMutex.withLock {
-      val current = readIndexLocked().filterNot { it.sessionId == entry.sessionId } + entry
-      writeIndexLocked(current)
+      val current = _indexState.value.filterNot { it.sessionId == entry.sessionId } + entry
+      val sorted = current.sortedByDescending { it.updatedAtMs }
+      writeIndexLocked(sorted)
+      _indexState.value = sorted
     }
   }
 
   private suspend fun removeFromIndex(sessionId: String) {
+    ensureIndexLoaded()
     indexMutex.withLock {
-      val current = readIndexLocked()
+      val current = _indexState.value
       val remaining = current.filterNot { it.sessionId == sessionId }
       if (remaining.size != current.size) {
         writeIndexLocked(remaining)
+        _indexState.value = remaining
       }
     }
   }

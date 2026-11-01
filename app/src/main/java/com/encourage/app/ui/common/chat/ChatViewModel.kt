@@ -26,6 +26,7 @@ import androidx.lifecycle.viewModelScope
 import com.encourage.app.common.processLlmResponse
 import com.encourage.app.data.ConfigKeys
 import com.encourage.app.data.Model
+import com.encourage.app.data.conversation.SessionFileStore
 import com.encourage.app.proto.AudioMessageProto
 import com.encourage.app.proto.ChatMessageProto
 import com.encourage.app.proto.ChatSessionProto
@@ -68,21 +69,90 @@ data class ChatUiState(
 )
 
 /** ViewModel responsible for managing the chat UI state and handling chat-related operations. */
-abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null) : ViewModel() {
+abstract class ChatViewModel(
+  val userDataDataStore: DataStore<UserData>? = null,
+  /**
+   * 【P1b】会话文件存储。非空时**它就是会话的权威数据源**：
+   * 列表读内存索引、详情读单文件、保存只写单文件；
+   * `UserData.chat_sessions` 只作为回退快照，不再写入。
+   *
+   * 可空是为了让测试/无持久化的子类能直接构造；为 null 时退回旧的整份写入路径。
+   */
+  val sessionFileStore: SessionFileStore? = null,
+) : ViewModel() {
   var currentSessionId: String = UUID.randomUUID().toString()
 
   private val _uiState = MutableStateFlow(createUiState())
   val uiState = _uiState.asStateFlow()
 
+  init {
+    // 索引只在内存里用，必须先把 index.tsv 读进来，否则列表会一直是空的。
+    sessionFileStore?.let { store ->
+      viewModelScope.launch(Dispatchers.IO) {
+        runCatching { store.ensureIndexLoaded() }
+          .onFailure { Log.e(TAG, "Failed to load session index.", it) }
+      }
+    }
+  }
+
+  /**
+   * 会话历史列表。
+   *
+   * 【P1b】已切换为「读文件层内存索引」：每条只是**元数据**（id/标题/时间/归属），
+   * 不含消息正文。列表滚动不再需要反序列化任何 `.pb`；点开某条时调用
+   * [readSessionContent] 取全文。
+   *
+   * [sessionFileStore] 为空（测试场景）时保留旧的「整份 UserData」来源。
+   */
   val historySessions: StateFlow<List<ChatSessionProto>> =
-    userDataDataStore
-      ?.data
-      ?.map { userData -> userData.chatSessionsList.sortedByDescending { it.timestampMs } }
-      ?.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList(),
-      ) ?: MutableStateFlow(emptyList())
+    sessionFileStore
+      ?.let { store ->
+        store.indexState
+          .map { entries -> entries.map(store::toLiteProto) }
+          .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList(),
+          )
+      }
+      ?: userDataDataStore
+        ?.data
+        ?.map { userData -> userData.chatSessionsList.sortedByDescending { it.timestampMs } }
+        ?.stateIn(
+          scope = viewModelScope,
+          started = SharingStarted.WhileSubscribed(5000),
+          initialValue = emptyList(),
+        )
+      ?: MutableStateFlow(emptyList())
+
+  /**
+   * 读取单条会话的完整内容（含消息）。
+   *
+   * 【P1b】优先读文件；文件不存在（新装/未迁移）时回退到旧字段，保证不丢历史。
+   */
+  suspend fun readSessionContent(sessionId: String): ChatSessionProto? {
+    sessionFileStore?.readSession(sessionId)?.let {
+      return it
+    }
+    return runCatching {
+        userDataDataStore?.data?.first()?.chatSessionsList?.firstOrNull {
+          it.sessionId == sessionId
+        }
+      }
+      .getOrNull()
+  }
+
+  /**
+   * 读取全部会话的完整内容（导出 Markdown / 备份用）。
+   *
+   * 【P1b】优先用文件层；文件层为空时回退旧字段。
+   */
+  suspend fun readAllSessionContents(): List<ChatSessionProto> {
+    val fromFiles = sessionFileStore?.readAllSessions().orEmpty()
+    if (fromFiles.isNotEmpty()) return fromFiles
+    return runCatching { userDataDataStore?.data?.first()?.chatSessionsList.orEmpty() }
+      .getOrDefault(emptyList())
+  }
 
   fun addMessage(model: Model, message: ChatMessage) {
     val newMessagesByModel = _uiState.value.messagesByModel.toMutableMap()
@@ -561,34 +631,54 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
           .addAllMessages(protoMessages)
           .build()
 
+      // 【P1b】会话归属记录的冗余字段（会话 id 列表 / 最后消息摘要 / 最后使用时间）。
+      // 新旧两条写入路径都要更新它——会话列表页读的是 profile，不是 session。
+      fun withUpdatedProfile(userData: UserData): UserData {
+        if (profileId.isEmpty()) return userData
+        val updatedProfiles =
+          userData.conversationProfilesList.map { proto ->
+            if (proto.id == profileId) {
+              val newSessionIds = listOf(sessionId) + proto.sessionIdsList.filter { it != sessionId }
+              proto
+                .toBuilder()
+                .clearSessionIds()
+                .addAllSessionIds(newSessionIds)
+                .setLastMessagePreview(lastMessagePreview)
+                .setLastUsedAtMs(now)
+                .build()
+            } else {
+              proto
+            }
+          }
+        return userData
+          .toBuilder()
+          .clearConversationProfiles()
+          .addAllConversationProfiles(updatedProfiles)
+          .build()
+      }
+
+      // 【P1b】主路径：只把这**一条**会话写进独立文件，写盘成本 O(单会话)。
+      // 旧字段 UserData.chat_sessions 不再更新（它已降级为回退快照）。
+      val written = sessionFileStore?.writeSession(sessionProto) ?: false
+      if (sessionFileStore != null && written) {
+        if (profileId.isNotEmpty()) {
+          userDataDataStore?.updateData { userData -> withUpdatedProfile(userData) }
+        }
+        return@launch
+      }
+
+      // 兜底：未接入文件层、或文件写失败 → 退回「整份重写旧字段」。
+      // 慢但不会丢数据；正常情况下走不到这里。
+      if (sessionFileStore != null) {
+        Log.w(TAG, "Session file write failed; falling back to legacy full rewrite.")
+      }
       userDataDataStore?.updateData { userData ->
         val currentSessions = userData.chatSessionsList.toMutableList()
         currentSessions.removeAll { it.sessionId == sessionId }
         currentSessions.add(sessionProto)
-        val builder =
-          userData.toBuilder().clearChatSessions().addAllChatSessions(currentSessions)
-        if (profileId.isNotEmpty()) {
-          // 同步冗余字段到所属记录：会话 id 头插去重、列表摘要、最后使用时间。
-          // profile 与 session 同属一份 UserData，此处为单次原子写入。
-          val updatedProfiles =
-            userData.conversationProfilesList.map { proto ->
-              if (proto.id == profileId) {
-                val newSessionIds =
-                  listOf(sessionId) + proto.sessionIdsList.filter { it != sessionId }
-                proto
-                  .toBuilder()
-                  .clearSessionIds()
-                  .addAllSessionIds(newSessionIds)
-                  .setLastMessagePreview(lastMessagePreview)
-                  .setLastUsedAtMs(now)
-                  .build()
-              } else {
-                proto
-              }
-            }
-          builder.clearConversationProfiles().addAllConversationProfiles(updatedProfiles)
-        }
-        builder.build()
+        withUpdatedProfile(
+          userData.toBuilder().clearChatSessions().addAllChatSessions(currentSessions).build()
+        )
       }
     }
   }
@@ -601,6 +691,9 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
   fun deleteSession(sessionId: String, context: Context? = null) {
     viewModelScope.launch(Dispatchers.IO) {
       deleteSessionCacheFiles(sessionIds = listOf(sessionId), context = context)
+      // 【P1b】文件层删掉；旧字段也一并删，否则回退快照里会留下已删会话。
+      runCatching { sessionFileStore?.deleteSession(sessionId) }
+        .onFailure { Log.e(TAG, "Failed to delete session file '$sessionId'.", it) }
       userDataDataStore?.updateData { userData ->
         val currentSessions = userData.chatSessionsList.filter { it.sessionId != sessionId }
         userData.toBuilder().clearChatSessions().addAllChatSessions(currentSessions).build()
@@ -624,11 +717,27 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
     val dataStore = userDataDataStore ?: return
     viewModelScope.launch(Dispatchers.IO) {
       try {
-        val sessionIds =
-          dataStore.data.first().chatSessionsList
-            .filter { it.profileId == profileId }
-            .map { it.sessionId }
+        // 【P1b】id 从两处合并取：文件索引（切路径后新增的）+ 旧字段（迁移前的老会话）。
+        val fromIndex =
+          runCatching {
+              sessionFileStore
+                ?.listSessions()
+                ?.filter { it.profileId == profileId }
+                ?.map { it.sessionId }
+                .orEmpty()
+            }
+            .getOrDefault(emptyList())
+        val fromLegacy =
+          dataStore.data.first().chatSessionsList.filter { it.profileId == profileId }.map {
+            it.sessionId
+          }
+        val sessionIds = (fromIndex + fromLegacy).toSet()
+
         deleteSessionCacheFiles(sessionIds = sessionIds, context = context)
+        sessionIds.forEach { id ->
+          runCatching { sessionFileStore?.deleteSession(id) }
+            .onFailure { Log.e(TAG, "Failed to delete session file '$id'.", it) }
+        }
         dataStore.updateData { userData ->
           val currentSessions = userData.chatSessionsList.filter { it.profileId != profileId }
           userData.toBuilder().clearChatSessions().addAllChatSessions(currentSessions).build()
@@ -665,6 +774,13 @@ abstract class ChatViewModel(val userDataDataStore: DataStore<UserData>? = null)
           }
         }
       }
+      // 【P1b】文件层全清。逐条删而不是删目录，保证索引同步更新（列表会立刻变空）。
+      runCatching {
+          sessionFileStore?.listSessions()?.forEach { entry ->
+            sessionFileStore.deleteSession(entry.sessionId)
+          }
+        }
+        .onFailure { Log.e(TAG, "Failed to clear session files.", it) }
       userDataDataStore?.updateData { userData -> userData.toBuilder().clearChatSessions().build() }
     }
   }

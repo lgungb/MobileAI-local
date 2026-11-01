@@ -34,6 +34,15 @@ private const val TAG = "SessionMigrator"
 /** 迁移完成标记在 `UserData.secrets` 里的键。 */
 private const val MIGRATION_FLAG = "session_file_migration_v1"
 
+/**
+ * 「读写主路径已切到文件层」的标记键。
+ *
+ * 与 [MIGRATION_FLAG] 的区别：迁移标记只表示「拆过文件」，本标记表示
+ * 「`UserData.chat_sessions` 已经不再作为权威数据源」。落了这个标记之后，
+ * 老字段只作为回退快照保留，不再更新。
+ */
+private const val CUTOVER_FLAG = "session_file_cutover_v1"
+
 /** 备份目录（相对 `filesDir`）。 */
 private const val BACKUP_DIR = "migration_backup"
 
@@ -153,6 +162,55 @@ constructor(
   }
 
   /**
+   * **一次性切换**：正式把文件层提升为会话的权威数据源。
+   *
+   * 必须在 `ChatViewModel` 已改为「读写文件」的那个版本里调用，且只跑一次。
+   * 顺序不能变：
+   *
+   * 1. 清掉迁移标记并**重跑迁移** —— 因为上一版可能只在启动时拆过一次文件，
+   *    之后新增的会话仍只存在于旧字段里，不补齐就会丢；
+   * 2. 迁移有失败就**直接返回**，不清理孤儿（数据不完整时清理等于删数据）；
+   * 3. 用旧字段的 id 集合清理孤儿 —— 清掉「旧路径已删、文件还留着」的会话，
+   *    否则切换读取路径之后它们会重新出现在列表里；
+   * 4. 落 [CUTOVER_FLAG]，保证永远只跑一次。
+   *
+   * @return 本次是否真的执行了切换（已切换过返回 false）。
+   */
+  suspend fun cutoverIfNeeded(): Boolean = withContext(Dispatchers.IO) {
+    val userData =
+      try {
+        userDataDataStore.data.first()
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to read UserData before cutover.", e)
+        return@withContext false
+      }
+
+    if (userData.secretsMap[CUTOVER_FLAG] == "done") {
+      return@withContext false
+    }
+
+    Log.d(TAG, "Session file cutover starting.")
+
+    // 1. 补齐：强制重跑一次迁移（按 timestampMs 增量，已有的会跳过）。
+    resetMigrationFlag()
+    val result = migrateIfNeeded()
+    if (result.failed > 0) {
+      // 有会话没写成文件 → 现在切过去会丢数据，保持旧路径，下次启动重试。
+      Log.e(TAG, "Cutover aborted: ${result.failed} session(s) failed to migrate.")
+      return@withContext false
+    }
+
+    // 2. 清孤儿：此刻文件已经覆盖了旧字段里的全部会话，差集就是「用户已删除」的。
+    val liveIds = userData.chatSessionsList.map { it.sessionId }.filter { it.isNotBlank() }.toSet()
+    val pruned = pruneOrphans(liveIds)
+
+    // 3. 落标记。
+    markCutoverDone()
+    Log.d(TAG, "Session file cutover done: migrated=${result.migrated}, pruned=$pruned.")
+    true
+  }
+
+  /**
    * 清理「索引里有、但 [liveSessionIds] 里已不存在」的孤儿会话文件。
    *
    * ⚠️ **不要在 P1b 切换读取路径之前自动调用**：那会把「只存在于新文件里的会话」误删。
@@ -197,6 +255,16 @@ constructor(
     } catch (e: Exception) {
       // 标记写失败不影响已迁移的文件，下次会重跑（文件已存在会被 skip）。
       Log.e(TAG, "Failed to persist migration flag.", e)
+    }
+  }
+
+  private suspend fun markCutoverDone() {
+    try {
+      userDataDataStore.updateData { userData ->
+        userData.toBuilder().putSecrets(CUTOVER_FLAG, "done").build()
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to persist cutover flag.", e)
     }
   }
 

@@ -60,6 +60,8 @@ private const val TAG = "ConversationProfileRepo"
 class ConversationProfileRepository(
   private val userDataDataStore: DataStore<UserData>,
   private val appContext: Context,
+  // 【P1b】会话正文已迁到独立文件；删记录时必须同时删文件，否则会留下孤儿会话。
+  private val sessionFileStore: SessionFileStore,
 ) {
 
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -263,9 +265,14 @@ class ConversationProfileRepository(
   suspend fun deleteProfile(id: String, context: Context? = appContext) {
     if (id.isEmpty()) return
     try {
-      // 先取出待删除的会话 id（合并记录快照与 session 侧归属，保证不漏删）。
+      // 先取出待删除的会话 id（合并记录快照、session 侧归属、文件索引，保证不漏删）。
       val sessionIds = collectOwnedSessionIds(id)
       deleteSessionCacheFiles(sessionIds, context)
+      // 【P1b】会话正文在独立文件里，必须一并删除，否则「删了记录会话还在」。
+      sessionIds.forEach { sessionId ->
+        runCatching { sessionFileStore.deleteSession(sessionId) }
+          .onFailure { Log.e(TAG, "Failed to delete session file '$sessionId'.", it) }
+      }
       userDataDataStore.updateData { userData ->
         val remainingProfiles = userData.conversationProfilesList.filter { it.id != id }
         val remainingSessions = userData.chatSessionsList.filter { it.profileId != id }
@@ -300,7 +307,7 @@ class ConversationProfileRepository(
     }
   }
 
-  /** 汇总某记录名下的会话 id（记录快照 ∪ session 侧 profile_id）。 */
+  /** 汇总某记录名下的会话 id（记录快照 ∪ session 侧 profile_id ∪ 文件索引）。 */
   private suspend fun collectOwnedSessionIds(profileId: String): Set<String> =
     try {
       val userData = userDataDataStore.data.first()
@@ -311,7 +318,15 @@ class ConversationProfileRepository(
           .orEmpty()
       val fromSessions =
         userData.chatSessionsList.filter { it.profileId == profileId }.map { it.sessionId }
-      (fromProfile + fromSessions).toSet()
+      // 【P1b】切换后新会话只存在文件索引里，旧字段里查不到。
+      val fromIndex =
+        runCatching {
+            sessionFileStore.listSessions().filter { it.profileId == profileId }.map {
+              it.sessionId
+            }
+          }
+          .getOrDefault(emptyList())
+      (fromProfile + fromSessions + fromIndex).toSet()
     } catch (e: Exception) {
       Log.e(TAG, "collectOwnedSessionIds failed for id=$profileId", e)
       emptySet()

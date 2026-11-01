@@ -356,6 +356,8 @@ fun ChatView(
   var showSaveTitleDialog by remember { mutableStateOf(false) }
   val exportSuccessMsg = stringResource(R.string.export_success)
   val exportFailedMsg = stringResource(R.string.export_failed)
+  // 【P1b】会话正文改为按需从文件读取，读不出来要有提示（不能让用户以为点了没反应）。
+  val sessionLoadFailedMsg = stringResource(R.string.session_load_failed)
 
   /** 用户选择保存位置后写入文件。 */
   val exportLauncher =
@@ -404,9 +406,17 @@ fun ChatView(
     if (historySessions.isEmpty()) {
       scope.launch { snackbarHostState.showSnackbar(exportFailedMsg) }
     } else {
-      pendingMarkdown = ChatMarkdownExporter.exportAllSessions(historySessions)
-      pendingFileName = "Encourage_${task.id}_全部会话"
-      showSaveTitleDialog = true
+      scope.launch {
+        // 【P1b】列表项只有元数据，导出需要正文 → 按索引逐条读文件（IO 线程，不阻塞界面）。
+        val fullSessions = withContext(Dispatchers.IO) { viewModel.readAllSessionContents() }
+        if (fullSessions.isEmpty()) {
+          snackbarHostState.showSnackbar(exportFailedMsg)
+          return@launch
+        }
+        pendingMarkdown = ChatMarkdownExporter.exportAllSessions(fullSessions)
+        pendingFileName = "Encourage_${task.id}_全部会话"
+        showSaveTitleDialog = true
+      }
     }
   }
 
@@ -523,8 +533,7 @@ fun ChatView(
             ChatHistorySideSheetContent(
               history = historySessions,
               onHistoryItemClicked = { sessionId ->
-                val session = historySessions.firstOrNull { it.sessionId == sessionId }
-                if (session != null) {
+                if (historySessions.any { it.sessionId == sessionId }) {
                   Log.d(
                     TAG,
                     "Analytics: chat_history, action=load_past_chat, capability_name=${task.id}, model_id=${selectedModel.name}, model_version=${selectedModel.version}",
@@ -541,16 +550,31 @@ fun ChatView(
 
                   scope.launch {
                     viewModel.setIsResettingSession(true)
-                    val messages =
-                      withContext(Dispatchers.IO) { deserializeProtoMessages(session.messagesList) }
-                    viewModel.clearAllMessages(selectedModel)
-                    for (msg in messages) {
-                      viewModel.addMessage(selectedModel, msg)
-                    }
-                    onResetSessionClicked(selectedModel, messages, /* clearHistory= */ false) {
+                    try {
+                      // 【P1b】列表项只带元数据，正文按需从会话文件读，避免为画列表反序列化全部会话。
+                      val full =
+                        withContext(Dispatchers.IO) { viewModel.readSessionContent(sessionId) }
+                      if (full == null) {
+                        Log.e(TAG, "Session '$sessionId' could not be loaded from storage.")
+                        snackbarHostState.showSnackbar(sessionLoadFailedMsg)
+                        return@launch
+                      }
+                      val messages =
+                        withContext(Dispatchers.IO) {
+                          deserializeProtoMessages(full.messagesList)
+                        }
+                      viewModel.clearAllMessages(selectedModel)
+                      for (msg in messages) {
+                        viewModel.addMessage(selectedModel, msg)
+                      }
+                      onResetSessionClicked(selectedModel, messages, /* clearHistory= */ false) {
+                        viewModel.setIsResettingSession(false)
+                      }
+                      viewModel.currentSessionId = full.sessionId
+                    } finally {
+                      // 回调里也会复位，这里兜一次异常路径，避免「重置中」卡住导致输入框永久禁用。
                       viewModel.setIsResettingSession(false)
                     }
-                    viewModel.currentSessionId = session.sessionId
                   }
                 }
                 scope.launch { drawerState.close() }

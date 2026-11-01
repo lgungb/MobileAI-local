@@ -23,6 +23,7 @@ import com.encourage.app.data.SystemPromptRepository
 import com.encourage.app.data.api.ApiProviderRepository
 import com.encourage.app.data.api.RemoteOpenAICompatProvider
 import com.encourage.app.data.conversation.ConversationProfileRepository
+import com.encourage.app.data.conversation.SessionFileStore
 import com.encourage.app.proto.UserData
 import com.encourage.app.ui.llmchat.LlmChatViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,6 +50,7 @@ constructor(
   apiProviderRepository: ApiProviderRepository,
   remoteProvider: RemoteOpenAICompatProvider,
   conversationProfileRepository: ConversationProfileRepository,
+  sessionFileStore: SessionFileStore,
 ) :
 LlmChatViewModel(
   systemPromptRepository,
@@ -57,4 +59,5 @@ LlmChatViewModel(
   apiProviderRepository,
   remoteProvider,
   conversationProfileRepository,
+  sessionFileStore,
 )

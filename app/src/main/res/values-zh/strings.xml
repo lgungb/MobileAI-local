@@ -831,6 +831,7 @@
   <string name="export_all_sessions" translatable="true" description="把全部历史对话导出为 Markdown 文件的按钮文案。">导出全部</string>
   <string name="export_success" translatable="true" description="对话导出成功时的提示。">已导出</string>
   <string name="export_failed" translatable="true" description="对话导出失败时的提示。">导出失败</string>
+  <string name="session_load_failed" translatable="true" description="读取本地会话文件失败时的提示。">这条对话读取失败</string>
   <string name="export_dialog_title" translatable="true" description="导出前确认文件名的对话框标题。">保存对话</string>
   <string name="export_dialog_file_name_label" translatable="true" description="导出对话框中文件名输入框的标签。">文件名</string>
   <string name="export_dialog_extension_hint" translatable="true" description="提示 .md 后缀会自动补全。">保存时自动补全 .md 后缀</string>

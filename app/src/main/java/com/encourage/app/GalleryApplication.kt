@@ -103,20 +103,21 @@ class GalleryApplication : Application() {
     // M4：本地 API Server 自动启停（监听配置 Flow）。
     localServerService.initialize(applicationScope)
 
-    // 【P1 会话文件化 · 第一步】把旧 user_data.pb 里的会话拆成独立文件 + 轻量索引。
+    // 【P1b 会话文件化 · 切换】把文件层正式提升为会话的权威数据源。
     //
-    // 只写不改：迁移**不会**清空 UserData.chat_sessions，读路径仍走旧逻辑，
-    // 所以这一步零风险、可随时回退（备份在 files/migration_backup/）。
-    // 放在后台协程里，任何异常只记日志，绝不影响启动。
+    // 顺序（改这段之前务必读一遍 SessionMigrator.cutoverIfNeeded 的注释）：
+    //   1. 强制重跑一次迁移，补齐上一版只写旧字段的会话；
+    //   2. 有失败就中止，保持旧路径，下次启动重试（数据不完整时绝不清理）；
+    //   3. 用旧字段的 id 集合清掉「已删除但文件还在」的孤儿，防止切换后它们复活；
+    //   4. 落 cutover 标记，保证只跑一次。
+    //
+    // 切换之后：会话读写都走 filesDir/sessions/，UserData.chat_sessions 只作为
+    // 回退快照保留（不再更新）。备份在 files/migration_backup/。
     applicationScope.launch {
       try {
-        val result = sessionMigrator.migrateIfNeeded()
-        if (!result.alreadyDone) {
-          DebugLog.i(
-            TAG,
-            "会话文件化迁移完成：成功 ${result.migrated} 条，跳过 ${result.skipped} 条，" +
-              "失败 ${result.failed} 条，备份 ${result.backupPath ?: "无"}",
-          )
+        val switched = sessionMigrator.cutoverIfNeeded()
+        if (switched) {
+          DebugLog.i(TAG, "会话存储已切换到文件层（读写主路径已切换）。")
         }
       } catch (e: Exception) {
         Log.e(TAG, "Session file migration failed.", e)

@@ -831,6 +831,7 @@
   <string name="export_all_sessions" translatable="true" description="Button label to export all saved conversations as a Markdown file.">Export all</string>
   <string name="export_success" translatable="true" description="Message shown after the conversation was exported successfully.">Exported</string>
   <string name="export_failed" translatable="true" description="Message shown when exporting the conversation failed.">Export failed</string>
+  <string name="session_load_failed" translatable="true" description="Message shown when a stored chat session cannot be read back from disk.">Failed to load this conversation</string>
   <string name="export_dialog_title" translatable="true" description="Title of the dialog where the user confirms the file name before exporting a conversation.">Save conversation</string>
   <string name="export_dialog_file_name_label" translatable="true" description="Label of the file name field in the export dialog.">File name</string>
   <string name="export_dialog_extension_hint" translatable="true" description="Hint telling the user that the .md extension is added automatically.">The .md extension is added automatically</string>
