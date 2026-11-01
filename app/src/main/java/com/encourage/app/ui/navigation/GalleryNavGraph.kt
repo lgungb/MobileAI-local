@@ -83,8 +83,10 @@ import com.encourage.app.R
 import com.encourage.app.customtasks.common.CustomTaskData
 import com.encourage.app.customtasks.common.CustomTaskDataForBuiltinTask
 import com.encourage.app.data.BuiltInTaskId
+import com.encourage.app.data.CLOUD_MODEL_NAME
 import com.encourage.app.data.Model
 import com.encourage.app.data.ModelDownloadStatusType
+import com.encourage.app.data.RuntimeType
 import com.encourage.app.data.Task
 import com.encourage.app.data.conversation.ConversationProfile
 import com.encourage.app.data.conversation.ConversationType
@@ -739,23 +741,25 @@ fun GalleryNavHost(
       val targetTask = modelManagerUiState.tasks.find { it.id == pendingNewTaskId }
       if (targetTask != null) {
         val defaultModel = pickDefaultModel(targetTask)
-        // 可选模型：该任务下的全部模型；已下载的排前面，默认模型最前。
+        // 模型是否「就绪可选」：已下载（SUCCEEDED）或 AICore 运行时或云端虚拟模型（无需下载）。
+        fun isReady(model: Model): Boolean =
+          modelManagerUiState.modelDownloadStatus[model.name]?.status ==
+            ModelDownloadStatusType.SUCCEEDED ||
+            model.runtimeType == RuntimeType.AICORE ||
+            model.name == CLOUD_MODEL_NAME
+        // 可选模型：该任务下的全部模型；已就绪的排前面，默认模型最前。
         val availableModels =
           targetTask.models.sortedBy { model ->
             when {
               model.name == defaultModel?.name -> 0
-              modelManagerUiState.modelDownloadStatus[model.name]?.status ==
-                ModelDownloadStatusType.SUCCEEDED -> 1
+              isReady(model) -> 1
               else -> 2
             }
           }
         NewConversationDialog(
           defaultModel = defaultModel,
           availableModels = availableModels,
-          isDownloaded = { model ->
-            modelManagerUiState.modelDownloadStatus[model.name]?.status ==
-              ModelDownloadStatusType.SUCCEEDED
-          },
+          isDownloaded = { model -> isReady(model) },
           onDismiss = {
             newConversationTaskId = null
             newConversationType = null
