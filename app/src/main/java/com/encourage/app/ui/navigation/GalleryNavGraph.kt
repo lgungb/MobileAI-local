@@ -88,6 +88,7 @@ import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.data.Task
 import com.encourage.app.data.conversation.ConversationProfile
 import com.encourage.app.data.conversation.ConversationType
+import com.encourage.app.data.conversation.PresetPrompt
 import com.encourage.app.data.isLegacyTasks
 import com.encourage.app.firebaseAnalytics
 import com.encourage.app.ui.benchmark.BenchmarkScreen
@@ -98,6 +99,7 @@ import com.encourage.app.ui.common.ModelPageAppBar
 import com.encourage.app.ui.common.chat.ModelDownloadStatusInfoPanel
 import com.encourage.app.ui.conversation.ConversationListScreen
 import com.encourage.app.ui.conversation.ConversationListViewModel
+import com.encourage.app.ui.conversation.NewConversationDialog
 import com.encourage.app.ui.home.PromoScreenGm4
 import com.encourage.app.ui.modelmanager.GlobalModelManager
 import com.encourage.app.ui.modelmanager.ModelHubScreen
@@ -264,6 +266,12 @@ fun GalleryNavHost(
   val conversationListViewModel: ConversationListViewModel = hiltViewModel()
   val scope = rememberCoroutineScope()
 
+  // 【新建对话】加号点击后弹出「选提示词 → 选模型」对话框的状态。
+  // newConversationTaskId / newConversationType 记录目标能力与记录类型；
+  // 为 null 表示未在新建流程中（不弹窗）。
+  var newConversationTaskId by remember { mutableStateOf<String?>(null) }
+  var newConversationType by remember { mutableStateOf<ConversationType?>(null) }
+
   // 【N6】统一「解析默认模型」策略：优先用户设置的全局默认模型（已下载时），
   // 否则回退该任务下已下载（SUCCEEDED）的第一个，再回退该任务的第一个模型。
   val pickDefaultModel: (Task) -> Model? = { targetTask ->
@@ -364,50 +372,69 @@ fun GalleryNavHost(
     }
   }
 
-  // 【T06】会话列表右下角「+」：用已下载模型直接建一条记录并进入会话。
+  // 【T06】会话列表右下角「+」：弹出「选提示词 → 选模型」对话框，选定后再建记录进会话。
   //
-  // 为什么要补这个入口：T01~T05 落地后，记录只能由「模型」Tab 的识图/语音、或「另存为特调」
-  // 产生，「对话」「功能」两个 Tab 的空列表**没有任何新建入口** —— 新装用户进来是空列表，
-  // 且无从下手。这里补上「开一个新会话」这条最基础的路径。
-  //
-  // 与 [openTaskModelList] 的区别：那边是「从能力卡片进入」（且识图/语音早已走这条路），
-  // 这里纯粹是「开一个普通新会话」，不经过 model_list 选择页。
+  // 为什么改成弹窗：此前加号会「直接用默认模型建一条记录并跳转」，没有给用户选择提示词、
+  // 模型的机会，且每次点击都新建一条记录（容易误触堆积）。改为两步选择流程：
+  //   1. 选一个常用提示词（角色设定）；
+  //   2. 选模型（默认模型置顶，非默认需二次确认耗时）；
+  //   三个采样参数一律用模型默认设置。
+  // 选定后由 [startNewConversation] 真正建记录并进入会话。
   //
   // @param taskId 目标能力（对话 Tab 传 llm_chat；功能 Tab 传 llm_agent_chat）。
   // @param type 记录类型（CHAT / AGENT），决定记录落在哪个列表里。
   val createNewConversation: (String, ConversationType) -> Unit = { taskId, type ->
     val targetTask = modelManagerUiState.tasks.find { it.id == taskId }
     if (targetTask == null) {
-      // 任务尚未装配完成（冷启动竞态）：只记日志，不跳转、不崩溃。
+      // 任务尚未装配完成（冷启动竞态）：只记日志，不弹窗、不崩溃。
       Log.w(TAG, "Task '$taskId' is not ready; cannot create a new conversation.")
     } else {
-      val model = pickDefaultModel(targetTask)
-      if (model == null) {
-        // 无任何模型：引导去模型管理页下载，绝不崩溃 / 白屏。
-        Log.w(TAG, "No model available for task '$taskId'; navigating to model manager.")
+      // 进入新建流程：记录目标能力与类型，弹出选择对话框。
+      newConversationTaskId = taskId
+      newConversationType = type
+    }
+  }
+
+  // 【新建对话】用户在弹窗里选定了提示词与模型后，真正建记录并进入会话。
+  //
+  // 与 [openProfile] 的差别：这里**用用户选定的模型**进入会话（不强制全局默认模型），
+  // 因为用户明确要「选模型」；提示词作为记录级 systemPrompt 落库。
+  // 采样参数 configValues 传空 map = 使用模型默认设置。
+  val startNewConversation: (PresetPrompt, Model) -> Unit = { prompt, model ->
+    val taskId = newConversationTaskId
+    val type = newConversationType
+    newConversationTaskId = null
+    newConversationType = null
+    if (taskId != null && type != null) {
+      scope.launch {
         try {
-          navController.navigate(ROUTE_MODEL_MANAGER)
-        } catch (e: Exception) {
-          Log.e(TAG, "Failed to navigate to model manager for task '$taskId'.", e)
-        }
-      } else {
-        scope.launch {
-          try {
-            val profile =
-              conversationListViewModel.createProfileAndReturn(
-                taskId = taskId,
-                modelName = model.name,
-                type = type,
-                displayName = model.displayName.ifBlank { model.name },
+          val profile =
+            conversationListViewModel.createProfileAndReturn(
+              taskId = taskId,
+              modelName = model.name,
+              type = type,
+              systemPrompt = prompt.prompt,
+              configValues = emptyMap(),
+              alias = prompt.title,
+              displayName = model.displayName.ifBlank { model.name },
+            )
+          if (profile != null) {
+            // 直接用所选模型进入对话（不经过 openProfile 的默认模型覆盖逻辑）。
+            try {
+              navController.navigate(
+                "$ROUTE_MODEL/$taskId/${model.name}" +
+                  "?profileId=${profile.id}&type=${type.name}"
               )
-            if (profile != null) {
-              openProfile(profile)
+            } catch (e: Exception) {
+              Log.e(TAG, "Failed to open new conversation for profile '${profile.id}'.", e)
             }
-          } catch (e: Exception) {
-            Log.e(TAG, "Failed to create a new conversation for task '$taskId'.", e)
           }
+        } catch (e: Exception) {
+          Log.e(TAG, "Failed to create a new conversation for task '$taskId'.", e)
         }
       }
+    } else {
+      Log.w(TAG, "startNewConversation called without pending task/type; ignored.")
     }
   }
 
@@ -703,6 +730,42 @@ fun GalleryNavHost(
             },
           )
         }
+      }
+    }
+
+    // 【新建对话】加号触发的「选提示词 → 选模型」对话框（覆盖在 NavHost 之上）。
+    val pendingNewTaskId = newConversationTaskId
+    if (pendingNewTaskId != null) {
+      val targetTask = modelManagerUiState.tasks.find { it.id == pendingNewTaskId }
+      if (targetTask != null) {
+        val defaultModel = pickDefaultModel(targetTask)
+        // 可选模型：该任务下的全部模型；已下载的排前面，默认模型最前。
+        val availableModels =
+          targetTask.models.sortedBy { model ->
+            when {
+              model.name == defaultModel?.name -> 0
+              modelManagerUiState.modelDownloadStatus[model.name]?.status ==
+                ModelDownloadStatusType.SUCCEEDED -> 1
+              else -> 2
+            }
+          }
+        NewConversationDialog(
+          defaultModel = defaultModel,
+          availableModels = availableModels,
+          isDownloaded = { model ->
+            modelManagerUiState.modelDownloadStatus[model.name]?.status ==
+              ModelDownloadStatusType.SUCCEEDED
+          },
+          onDismiss = {
+            newConversationTaskId = null
+            newConversationType = null
+          },
+          onConfirm = { prompt, model -> startNewConversation(prompt, model) },
+        )
+      } else {
+        // 目标任务仍不可用：关闭流程，避免空弹窗。
+        newConversationTaskId = null
+        newConversationType = null
       }
     }
 

@@ -37,10 +37,13 @@ package com.encourage.app.data.api
 
 import androidx.datastore.core.DataStore
 import com.encourage.app.proto.Settings
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 /** 读写外部 API 配置的仓库。apiKey 落盘前经 [ApiSecretCipher] 加密（M5-3）。 */
@@ -56,7 +59,7 @@ constructor(
   val configs: Flow<List<ApiProviderConfig>> =
     settingsDataStore.data.map { settings ->
       settings.apiProvidersList.map { decryptConfig(ApiProviderConfig.fromProto(it)) }
-    }
+    }.flowOn(Dispatchers.IO)
 
   /** 是否启用外部 API 推理（false = 只用本地模型）。 */
   val useRemoteApi: Flow<Boolean> = settingsDataStore.data.map { it.useRemoteApi }
@@ -79,7 +82,7 @@ constructor(
       settings.apiProvidersList
         .firstOrNull { it.id == activeId && it.enabled }
         ?.let { decryptConfig(ApiProviderConfig.fromProto(it)) }
-    }
+    }.flowOn(Dispatchers.IO)
 
   /** 按 id 取一条配置（一次性读取，不订阅）。 */
   suspend fun getById(id: String): ApiProviderConfig? = configs.map { list -> list.firstOrNull { it.id == id } }.firstOrNull()
@@ -166,11 +169,22 @@ constructor(
     }
   }
 
+  /** 密文 → 明文解密缓存（key = 密文，value = 明文），避免每次 DataStore 刷新都重复 Keystore 硬件操作。 */
+  private val decryptCache = ConcurrentHashMap<String, String>()
+
   /** 读取路径统一解密：无 enc1: 前缀的历史明文原样通过，下次保存时自动升级为密文。 */
   private fun decryptConfig(config: ApiProviderConfig): ApiProviderConfig =
     if (config.apiKey.isEmpty()) {
       config
     } else {
-      config.copy(apiKey = cipher.decrypt(config.apiKey))
+      config.copy(apiKey = decryptCached(config.apiKey))
     }
+
+  /** 带缓存解密：密文已解密过则直接命中缓存，避免重复触发 Keystore 硬件操作。 */
+  private fun decryptCached(cipherText: String): String {
+    if (!cipherText.startsWith("enc1:")) {
+      return cipherText
+    }
+    return decryptCache.getOrPut(cipherText) { cipher.decrypt(cipherText) }
+  }
 }

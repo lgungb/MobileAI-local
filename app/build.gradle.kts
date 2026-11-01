@@ -56,8 +56,8 @@ android {
      * 若后续需要上架 Google Play，按其当年的 targetSdk 要求再统一上调即可。
      */
     targetSdk = 36
-    versionCode = 54
-    versionName = "1.0.32"
+    versionCode = 56
+    versionName = "1.0.34"
 
     // Needed for HuggingFace auth workflows.
     // Use the scheme of the "Redirect URLs" in HuggingFace app.
