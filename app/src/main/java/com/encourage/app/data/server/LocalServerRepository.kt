@@ -26,6 +26,9 @@ import kotlinx.coroutines.flow.map
 /** 本地 API 服务的默认端口。 */
 const val DEFAULT_SERVER_PORT = 8010
 
+/** 最小可用端口（1024，普通 App 无法绑定 1024 以下的特权端口）。 */
+const val MIN_SERVER_PORT = 1024
+
 /** 本地 API 服务配置的领域模型。 */
 data class LocalServerSettings(
   val enabled: Boolean = false,
@@ -33,7 +36,8 @@ data class LocalServerSettings(
   val token: String = "",
   val bindAllInterfaces: Boolean = false,
 ) {
-  val effectivePort: Int get() = if (port in 1..65535) port else DEFAULT_SERVER_PORT
+  // 端口合法性：1024~65535 之间才有效，否则回退默认端口（避开特权端口，Android 上 <1024 绑定会 Permission denied）。
+  val effectivePort: Int get() = if (port in MIN_SERVER_PORT..65535) port else DEFAULT_SERVER_PORT
 }
 
 /** 本地 API 服务配置的读写仓库（DataStore<Settings>）。 */

@@ -111,6 +111,18 @@ constructor(
     stop()
     val port = settings.effectivePort
     val host = if (settings.bindAllInterfaces) "0.0.0.0" else "127.0.0.1"
+
+    // 【防闪退】CIO 引擎的异步 accept 循环在 bind 失败时抛出的 SocketException
+    // 发生在 Ktor 自己的后台线程（见崩溃堆栈 DefaultDispatcher-worker-6），**绕过外层 try-catch**，
+    // 直接冒泡到全局崩溃处理器 → 杀进程闪退。这里先做一次**同步端口预检**：
+    // 能绑上就释放（让 Ktor 去绑），绑不上（端口占用 / Android 17 权限限制 / 特权端口）
+    // 就绝不启动 Ktor，仅记日志返回，保证 App 不因本地服务崩溃。
+    if (!canBind(host, port)) {
+      Log.e(TAG, "Local API server cannot bind $host:$port (permission denied or port in use); not started.")
+      isRunning = false
+      return
+    }
+
     try {
       server =
         embeddedServer(factory = CIO, host = host, port = port) {
@@ -143,6 +155,30 @@ constructor(
     } catch (e: Exception) {
       Log.e(TAG, "Failed to start local API server", e)
       isRunning = false
+    }
+  }
+
+  /**
+   * 同步探测某 host:port 能否绑定（bind 后立即 close，不占用端口）。
+   *
+   * 这是「本地 API Server 绑端口失败导致闪退」的兜底：Android 上 CIO 引擎异步 bind
+   * 抛 `SocketException: Permission denied` 无法被外层 try-catch 捕获，因此在真正启动 Ktor
+   * 前先用 JDK 的 [java.net.ServerSocket] 做一次同步预检。失败返回 false，调用方据此放弃启动。
+   */
+  private fun canBind(host: String, port: Int): Boolean {
+    return try {
+      java.net.ServerSocket().use { socket ->
+        socket.reuseAddress = true
+        // 特权端口（<1024）普通 App 无法绑定，这里直接判失败。
+        if (port < 1024) {
+          return false
+        }
+        socket.bind(java.net.InetSocketAddress(host, port))
+      }
+      true
+    } catch (e: Exception) {
+      Log.w(TAG, "Port pre-check failed for $host:$port", e)
+      false
     }
   }
 
@@ -465,12 +501,21 @@ constructor(
   /** 应用启动时调用一次：订阅配置，自动启停。 */
   fun initialize(scope: kotlinx.coroutines.CoroutineScope) {
     scope.launch {
-      repository.settings.collect { settings ->
-        if (settings.enabled) {
-          apiServer.start(settings)
-        } else {
-          apiServer.stop()
+      try {
+        repository.settings.collect { settings ->
+          try {
+            if (settings.enabled) {
+              apiServer.start(settings)
+            } else {
+              apiServer.stop()
+            }
+          } catch (e: Exception) {
+            // 【防闪退】服务启停的任何异常都不应导致应用崩溃，仅记录日志。
+            Log.e(TAG, "Local API server start/stop failed, ignored.", e)
+          }
         }
+      } catch (e: Exception) {
+        Log.e(TAG, "Local API server settings collection failed, ignored.", e)
       }
     }
   }
