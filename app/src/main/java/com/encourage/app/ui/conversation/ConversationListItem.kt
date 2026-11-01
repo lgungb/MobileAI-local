@@ -15,7 +15,6 @@
 
 package com.encourage.app.ui.conversation
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -88,9 +87,6 @@ fun ConversationListItem(
   var offsetX by remember(profile.id) { mutableFloatStateOf(0f) }
 
   val alias = profile.alias.ifBlank { stringResource(R.string.conversation_profile_unnamed) }
-  val typeLabel = stringResource(profile.type.labelRes())
-  val modelText =
-    profile.modelName.ifBlank { stringResource(R.string.conversation_profile_unnamed_model) }
   val preview = profile.lastMessagePreview
   val yesterdayLabel = stringResource(R.string.conversation_time_yesterday)
   val timeText =
@@ -185,13 +181,6 @@ fun ConversationListItem(
             )
           }
         }
-        Text(
-          "$modelText · $typeLabel",
-          color = MaterialTheme.colorScheme.primary,
-          style = MaterialTheme.typography.bodySmall,
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-        )
         if (preview.isNotBlank()) {
           Text(
             preview,
@@ -213,16 +202,6 @@ private fun ConversationType.icon(): ImageVector =
     ConversationType.IMAGE -> Icons.Rounded.Image
     ConversationType.AUDIO -> Icons.Rounded.Mic
     ConversationType.AGENT -> Icons.Rounded.SmartToy
-  }
-
-/** 会话类型 → 文案资源。 */
-@StringRes
-private fun ConversationType.labelRes(): Int =
-  when (this) {
-    ConversationType.CHAT -> R.string.conversation_type_chat
-    ConversationType.IMAGE -> R.string.conversation_type_image
-    ConversationType.AUDIO -> R.string.conversation_type_audio
-    ConversationType.AGENT -> R.string.conversation_type_agent
   }
 
 /**

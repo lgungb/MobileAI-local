@@ -53,6 +53,7 @@ import androidx.core.os.bundleOf
 import com.encourage.app.GalleryEvent
 import com.encourage.app.R
 import com.encourage.app.data.BuiltInTaskId
+import com.encourage.app.data.Model
 import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.firebaseAnalytics
 import com.encourage.app.ui.common.EmptyState
@@ -95,6 +96,8 @@ fun LlmSingleTurnScreen(
   val context = LocalContext.current
   var navigatingUp by remember { mutableStateOf(false) }
   var showErrorDialog by remember { mutableStateOf(false) }
+  // 【模型锁定】待确认切换的模型：用户想切到非锁定模型时，先弹确认；确认后改锁定。
+  var pendingModelSwitch by remember { mutableStateOf<Model?>(null) }
 
   val handleNavigateUp = {
     navigatingUp = true
@@ -157,14 +160,19 @@ fun LlmSingleTurnScreen(
         onConfigChanged = { _, _ -> },
         onBackClicked = { handleNavigateUp() },
         onModelSelected = { prevModel, newSelectedModel ->
-          scope.launch(Dispatchers.Default) {
-            if (prevModel.name != newSelectedModel.name) {
-              // Clean up prev model.
-              modelManagerViewModel.cleanupModel(context = context, task = task, model = prevModel)
+          // 【模型锁定】切到非锁定模型时，先弹确认（切换会改锁定 + 重新加载）。
+          val lockedId = modelManagerUiState.defaultModelId
+          if (lockedId.isNotBlank() && lockedId != newSelectedModel.name) {
+            pendingModelSwitch = newSelectedModel
+          } else {
+            scope.launch(Dispatchers.Default) {
+              if (prevModel.name != newSelectedModel.name) {
+                // Clean up prev model.
+                modelManagerViewModel.cleanupModel(context = context, task = task, model = prevModel)
+              }
+              // Update selected model.
+              modelManagerViewModel.selectModel(model = newSelectedModel)
             }
-
-            // Update selected model.
-            modelManagerViewModel.selectModel(model = newSelectedModel)
           }
         },
       )
@@ -255,5 +263,45 @@ fun LlmSingleTurnScreen(
         )
       }
     }
+  }
+
+  // 【模型锁定】切到非锁定模型的确认弹窗：醒目「取消」+「确认切换」。
+  val pendingSwitch = pendingModelSwitch
+  if (pendingSwitch != null) {
+    androidx.compose.material3.AlertDialog(
+      onDismissRequest = { pendingModelSwitch = null },
+      title = { androidx.compose.material3.Text("切换模型") },
+      text = {
+        androidx.compose.material3.Text(
+          "将切换到「${pendingSwitch.displayName.ifBlank { pendingSwitch.name }}」，" +
+            "与当前锁定模型不同，需要重新加载（首次推理会变慢）。\n\n" +
+            "确认后，该模型会成为新的锁定模型。"
+        )
+      },
+      confirmButton = {
+        androidx.compose.material3.TextButton(
+          onClick = {
+            val target = pendingSwitch
+            pendingModelSwitch = null
+            scope.launch(Dispatchers.Default) {
+              // 先清理旧模型，再切换 + 改锁定。
+              val prev = modelManagerUiState.selectedModel
+              if (prev.name != target.name) {
+                modelManagerViewModel.cleanupModel(context = context, task = task, model = prev)
+              }
+              modelManagerViewModel.setDefaultModel(target) // 改锁定
+              modelManagerViewModel.selectModel(target)
+            }
+          }
+        ) {
+          androidx.compose.material3.Text("确认切换")
+        }
+      },
+      dismissButton = {
+        androidx.compose.material3.TextButton(onClick = { pendingModelSwitch = null }) {
+          androidx.compose.material3.Text("取消")
+        }
+      },
+    )
   }
 }

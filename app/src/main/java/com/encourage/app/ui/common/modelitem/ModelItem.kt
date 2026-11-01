@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.encourage.app.R
 import com.encourage.app.data.Model
+import com.encourage.app.data.CLOUD_MODEL_NAME
 import com.encourage.app.data.ModelDownloadStatus
 import com.encourage.app.data.ModelDownloadStatusType
 import com.encourage.app.data.RuntimeType
@@ -433,8 +434,13 @@ fun ModelItemActionMenu(
       )
     }
     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-      // 【N6】设为 / 取消全局默认模型。
+      // 【模型锁定】设为 / 取消全局锁定模型。未下载的模型不允许锁定。
+      val downloaded =
+        uiState.modelDownloadStatus[model.name]?.status == ModelDownloadStatusType.SUCCEEDED ||
+          model.runtimeType == RuntimeType.AICORE ||
+          model.name == CLOUD_MODEL_NAME
       DropdownMenuItem(
+        enabled = isDefault || downloaded,
         text = {
           Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -444,7 +450,13 @@ fun ModelItemActionMenu(
               if (isDefault) Icons.Rounded.Star else Icons.Rounded.StarBorder,
               contentDescription = null,
             )
-            Text(if (isDefault) "取消默认模型" else "设为默认模型")
+            Text(
+              when {
+                isDefault -> "取消锁定模型"
+                !downloaded -> "锁定模型（需先下载）"
+                else -> "锁定此模型"
+              }
+            )
           }
         },
         onClick = {

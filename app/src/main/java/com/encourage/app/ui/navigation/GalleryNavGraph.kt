@@ -47,8 +47,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -188,6 +191,10 @@ fun GalleryNavHost(
   var enableModelListAnimation by remember { mutableStateOf(true) }
   val modelManagerUiState by modelManagerViewModel.uiState.collectAsState()
 
+  // 【专用任务提示】点 Tiny Garden / Mobile Actions 且需加载专用模型（≠锁定模型）时，
+  // 记录待进入的任务，弹出「加载专用模型」确认提示。
+  var pendingSpecialTask by remember { mutableStateOf<Task?>(null) }
+
   // 首次启动品牌引导页（保留原有行为：仅未看过时展示一次）。
   // 【健壮性】hasViewedPromo() 内部是 runBlocking 读取 DataStore，直接放在 remember 里会阻塞
   // 主线程、拖慢冷启动。改为异步读取：读取完成前用与启动页一致的背景遮罩盖住，避免闪屏。
@@ -284,26 +291,23 @@ fun GalleryNavHost(
   // 【T04】识图 / 语音 / 对话统一收敛到 llm_chat（通过 type 区分输入能力）；
   // Agent 记录仍走原生 llm_agent_chat（依赖 Skills / MCP，不能收敛为普通对话）。
   val openProfile: (ConversationProfile) -> Unit = { profile ->
-    // 【N7】模型锁定：点对话不切换后台模型，始终用全局默认模型。
-    // profile 只提供提示词和采样参数，不绑定模型。
-    val defaultModelId = modelManagerViewModel.uiState.value.defaultModelId
-    val modelName = if (defaultModelId.isNotBlank()) {
-      defaultModelId
+    // 【模型锁定】确定目标任务的 routeTaskId，再用统一解析器取「锁定模型」（全局强锁）。
+    // 记录里的 profile.modelName 不再决定进入后用什么模型——锁定模型优先；
+    // 未锁定时回退该任务的默认模型。这样「点任何记录都不会悄悄换模型」。
+    val routeTaskId =
+      if (profile.type == ConversationType.AGENT) {
+        profile.taskId.ifBlank { BuiltInTaskId.LLM_AGENT_CHAT }
+      } else {
+        BuiltInTaskId.LLM_CHAT
+      }
+    val targetTask = modelManagerUiState.tasks.find { it.id == routeTaskId }
+    val model = targetTask?.let { pickDefaultModel(it) }
+    if (model == null) {
+      Log.w(TAG, "Profile '${profile.id}' has no available model; navigation ignored.")
     } else {
-      profile.modelName
-    }
-    if (modelName.isBlank()) {
-      Log.w(TAG, "Profile '${profile.id}' has no model; navigation ignored.")
-    } else {
-      val routeTaskId =
-        if (profile.type == ConversationType.AGENT) {
-          profile.taskId.ifBlank { BuiltInTaskId.LLM_AGENT_CHAT }
-        } else {
-          BuiltInTaskId.LLM_CHAT
-        }
       try {
         navController.navigate(
-          "$ROUTE_MODEL/$routeTaskId/$modelName" +
+          "$ROUTE_MODEL/$routeTaskId/${model.name}" +
             "?profileId=${profile.id}&type=${profile.type.name}"
         )
       } catch (e: Exception) {
@@ -353,21 +357,40 @@ fun GalleryNavHost(
         }
       }
       else -> {
-        // 【N6】实验类任务（Tiny Garden / Mobile Actions）：直接用全局默认模型进对话，
-        // 不再弹模型选择列表。用户若想切模型，需去模型管理页「设为默认」。
-        val model = pickDefaultModel(task)
-        if (model == null) {
-          Log.w(TAG, "No model available for task '${task.id}'; navigating to model manager.")
-          try {
-            navController.navigate(ROUTE_MODEL_MANAGER)
-          } catch (e: Exception) {
-            Log.e(TAG, "Failed to navigate to model manager for task '${task.id}'.", e)
+        // 【模型锁定】专用任务（Tiny Garden / Mobile Actions）：
+        // 该任务有「专用模型」（bestForTaskIds 含本任务 id、已下载）。若当前锁定模型 ≠ 专用模型，
+        // 弹提示让用户选「用专用模型（改锁定+加载卡顿）」还是「用锁定模型硬跑」。
+        // 无专用模型（或未下载）时，直接按全局锁定模型进入。
+        val specialModel =
+          task.models.firstOrNull { m ->
+            m.bestForTaskIds.contains(task.id) &&
+              modelManagerUiState.modelDownloadStatus[m.name]?.status ==
+              ModelDownloadStatusType.SUCCEEDED
           }
+        val lockedId = modelManagerUiState.defaultModelId
+        val lockedModel =
+          if (lockedId.isNotBlank()) modelManagerViewModel.getModelByName(lockedId) else null
+        // 是否需要弹「专用模型」提示：有专用模型，且它 ≠ 当前锁定模型。
+        val needsSpecialPrompt =
+          specialModel != null && lockedModel != null && specialModel.name != lockedModel.name
+        if (needsSpecialPrompt) {
+          pendingSpecialTask = task
         } else {
-          try {
-            navController.navigate("$ROUTE_MODEL/${task.id}/${model.name}")
-          } catch (e: Exception) {
-            Log.e(TAG, "Failed to open task '${task.id}' with model '${model.name}'.", e)
+          // 直接用锁定模型（或该任务默认模型）进入。
+          val model = lockedModel ?: specialModel ?: pickDefaultModel(task)
+          if (model == null) {
+            Log.w(TAG, "No model available for task '${task.id}'; navigating to model manager.")
+            try {
+              navController.navigate(ROUTE_MODEL_MANAGER)
+            } catch (e: Exception) {
+              Log.e(TAG, "Failed to navigate to model manager for task '${task.id}'.", e)
+            }
+          } else {
+            try {
+              navController.navigate("$ROUTE_MODEL/${task.id}/${model.name}")
+            } catch (e: Exception) {
+              Log.e(TAG, "Failed to open task '${task.id}' with model '${model.name}'.", e)
+            }
           }
         }
       }
@@ -771,6 +794,68 @@ fun GalleryNavHost(
         newConversationTaskId = null
         newConversationType = null
       }
+    }
+
+    // 【专用任务提示】点 Tiny Garden / Mobile Actions 且需加载专用模型（≠锁定模型）时弹出。
+    val specialTask = pendingSpecialTask
+    if (specialTask != null) {
+      // 该任务的专用模型（bestForTaskIds 含本任务 id、已下载）。
+      val specialModel =
+        specialTask.models.firstOrNull { m ->
+          m.bestForTaskIds.contains(specialTask.id) &&
+            modelManagerUiState.modelDownloadStatus[m.name]?.status ==
+            ModelDownloadStatusType.SUCCEEDED
+        }
+      val lockedModel =
+        modelManagerUiState.defaultModelId.takeIf { it.isNotBlank() }
+          ?.let { modelManagerViewModel.getModelByName(it) }
+      AlertDialog(
+        onDismissRequest = { pendingSpecialTask = null },
+        title = { Text("需要专用模型") },
+        text = {
+          Text(
+            "「${specialTask.label}」有自己的专用模型" +
+              "（${specialModel?.displayName?.ifBlank { specialModel?.name } ?: "未下载"}），" +
+              "当前锁定的模型（${lockedModel?.displayName?.ifBlank { lockedModel?.name } ?: "无"}）无法替代它。\n\n" +
+              "切换到专用模型会改锁定并重新加载（有卡顿）；用锁定模型硬跑则该功能可能不正常。"
+          )
+        },
+        confirmButton = {
+          TextButton(
+            onClick = {
+              pendingSpecialTask = null
+              if (specialModel != null) {
+                // 切到专用模型 = 改锁定 + 进入。
+                modelManagerViewModel.setDefaultModel(specialModel)
+                try {
+                  navController.navigate("$ROUTE_MODEL/${specialTask.id}/${specialModel.name}")
+                } catch (e: Exception) {
+                  Log.e(TAG, "Failed to open task '${specialTask.id}'.", e)
+                }
+              }
+            }
+          ) {
+            Text("用专用模型")
+          }
+        },
+        dismissButton = {
+          // 「用锁定模型硬跑」：不切换，直接用锁定模型进入。
+          TextButton(
+            onClick = {
+              pendingSpecialTask = null
+              if (lockedModel != null) {
+                try {
+                  navController.navigate("$ROUTE_MODEL/${specialTask.id}/${lockedModel.name}")
+                } catch (e: Exception) {
+                  Log.e(TAG, "Failed to open task '${specialTask.id}' with locked model.", e)
+                }
+              }
+            }
+          ) {
+            Text("用锁定模型")
+          }
+        },
+      )
     }
 
     // 首次启动品牌引导页覆盖层（画在 NavHost 之上，铺满整屏）。

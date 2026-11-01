@@ -137,6 +137,8 @@ fun ConfigDialog(
   showSystemPromptEditorTab: Boolean = false,
   defaultSystemPrompt: String = "",
   curSystemPrompt: String = "",
+  // 【模型展示】当前会话所用模型名，非空时在标题下显示，让用户一眼看出在跟哪个模型对话。
+  modelName: String = "",
 ) {
   val values: SnapshotStateMap<String, Any> = remember {
     mutableStateMapOf<String, Any>().apply { putAll(initialValues) }
@@ -171,6 +173,15 @@ fun ConfigDialog(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 8.dp),
           )
+          // 【模型展示】当前会话所用模型名（例如「当前模型：Gemma 3 4B」）。
+          if (modelName.isNotEmpty()) {
+            Text(
+              "当前模型：$modelName",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.offset(y = (-6).dp),
+            )
+          }
           // Subtitle.
           if (subtitle.isNotEmpty()) {
             Text(
