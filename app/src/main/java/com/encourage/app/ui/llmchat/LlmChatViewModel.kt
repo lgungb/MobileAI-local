@@ -229,12 +229,24 @@ open class LlmChatViewModelBase(
    * Loads the system prompt for the given [task] from the repository.
    *
    * @param task The task to load the system prompt for.
+   * @param model 【T06】当前模型；非空时把提示词同步进本地引擎（引擎尚未初始化则挂成待应用值，
+   *   等 `initializeModel` 时优先采用）。
    */
-  fun loadSystemPrompt(task: Task) {
+  fun loadSystemPrompt(task: Task, model: Model? = null) {
     viewModelScope.launch {
-      val effectivePrompt =
-        SystemPromptHelper.getEffectiveSystemPrompt(systemPromptRepository, task)
-      _uiSystemPrompt.value = effectivePrompt
+      try {
+        val effectivePrompt =
+          SystemPromptHelper.getEffectiveSystemPrompt(systemPromptRepository, task)
+        _uiSystemPrompt.value = effectivePrompt
+        if (model != null) {
+          // 未绑定记录 = 应使用任务级全局提示词。清掉可能残留的记录级待应用值，
+          // 否则模型保活后会继续沿用上一条记录的提示词（跨记录串台）。
+          model.pendingSystemInstruction = null
+          applySystemPromptToEngine(task = task, model = model, desired = effectivePrompt)
+        }
+      } catch (e: Exception) {
+        Log.e(TAG, "loadSystemPrompt failed for task=${task.id}", e)
+      }
     }
   }
 
@@ -253,7 +265,9 @@ open class LlmChatViewModelBase(
   fun bindProfile(profile: ConversationProfile?, task: Task, model: Model? = null) {
     if (profile == null) {
       _boundProfileId.value = null
-      loadSystemPrompt(task)
+      // 【T06】把 model 一起传下去：未绑定记录时要让引擎回到全局提示词，
+      // 否则模型保活后会继续沿用上一条记录的提示词。
+      loadSystemPrompt(task, model)
       return
     }
     _boundProfileId.value = profile.id
@@ -271,9 +285,65 @@ open class LlmChatViewModelBase(
             SystemPromptHelper.getEffectiveSystemPrompt(systemPromptRepository, task)
           }
         _uiSystemPrompt.value = prompt
+        // 【T06 提示词串台修复】记录级提示词必须真正注入本地引擎。
+        //
+        // 旧实现在这里只写了 `_uiSystemPrompt`（界面显示），引擎侧完全没动：
+        // 顶栏看着是新提示词，实际推理用的还是初始化时的任务级全局提示词，
+        // 于是「选什么都一样」，切换记录时还会继续用上一条的 —— 就是用户看到的串台。
+        if (model != null) {
+          // 还没初始化的模型：挂成待应用值，由 initializeModel 直接采用。
+          model.pendingSystemInstruction = prompt
+          // 已保活的模型：立刻重建会话上下文（只重置 KV cache，不重载权重）。
+          applySystemPromptToEngine(task = task, model = model, desired = prompt)
+        }
       } catch (e: Exception) {
         Log.e(TAG, "bindProfile failed for id=${profile.id}", e)
       }
+    }
+  }
+
+  /**
+   * 【T06 提示词串台修复】让「记录级系统提示词」真正生效。
+   *
+   * 三种情况：
+   * 1. 走云端 API —— 每轮请求都会带 `systemPrompt`，无需重建本地会话，直接返回；
+   * 2. 模型尚未初始化（`instance == null`）—— 不做任何事，等 `initializeModel`
+   *    消费 [Model.pendingSystemInstruction]；
+   * 3. 模型已保活 —— 若引擎当前提示词与期望不一致，调 [resetSession] 重建会话上下文。
+   *    `resetSession` 只重置 KV cache、不重载权重，秒级完成。
+   *
+   * 全程异常兜底：任何失败只记日志，不影响会话页正常使用。
+   */
+  private suspend fun applySystemPromptToEngine(task: Task, model: Model, desired: String) {
+    try {
+      if (resolveActiveRemoteConfig() != null) {
+        Log.d(TAG, "Remote API active, skip local system prompt rebind.")
+        return
+      }
+      if (model.instance == null) {
+        Log.d(TAG, "Model '${model.name}' not initialized yet; prompt deferred to initializeModel.")
+        return
+      }
+      if (model.appliedSystemInstruction == desired) {
+        Log.d(TAG, "Engine already uses the desired system prompt; no rebind needed.")
+        return
+      }
+      Log.d(
+        TAG,
+        "Rebind system prompt for task=${task.id}, model=${model.name} " +
+          "(engine=${model.appliedSystemInstruction?.length ?: 0} chars -> " +
+          "desired=${desired.length} chars)",
+      )
+      resetSession(
+        task = task,
+        model = model,
+        systemInstruction = desired,
+        supportImage = true,
+        supportAudio = true,
+        clearHistory = false,
+      )
+    } catch (e: Exception) {
+      Log.e(TAG, "applySystemPromptToEngine failed for task=${task.id}", e)
     }
   }
 
@@ -729,34 +799,42 @@ open class LlmChatViewModelBase(
   ) {
     viewModelScope.launch(Dispatchers.Default) {
       setIsResettingSession(true)
-      if (clearHistory) {
-        clearAllMessages(model = model)
-      }
-      stopResponse(model = model)
+      try {
+        if (clearHistory) {
+          clearAllMessages(model = model)
+        }
+        stopResponse(model = model)
 
-      // 【M2】云端模式下不需要初始化本地模型：跳过 runtimeExecutor.resetSession()，
-      // 否则只是打开云端对话页，也会把几个 GB 的本地模型加载进内存。
-      if (resolveActiveRemoteConfig() != null) {
-        Log.d(TAG, "Remote API active, skip local session reset")
+        // 【M2】云端模式下不需要初始化本地模型：跳过 runtimeExecutor.resetSession()，
+        // 否则只是打开云端对话页，也会把几个 GB 的本地模型加载进内存。
+        if (resolveActiveRemoteConfig() != null) {
+          Log.d(TAG, "Remote API active, skip local session reset")
+          onDone()
+          return@launch
+        }
+
+        val config =
+          AgentRuntimeConfig(
+            model = model,
+            taskId = task.id,
+            actionChannel = actionChannel,
+            supportImage = supportImage,
+            supportAudio = supportAudio,
+            enableConversationConstrainedDecoding = enableConversationConstrainedDecoding,
+            systemInstruction = systemInstruction,
+            initialMessages = initialMessages,
+          )
+        runtimeExecutor.resetSession(config = config)
+
+        // 【T06】记录引擎当前生效的提示词，供下次进入其他会话记录时比对。
+        // 传 null 时执行器实际注入的是空串，这里同步记成空串，语义保持一致。
+        model.appliedSystemInstruction = systemInstruction ?: ""
+      } catch (e: Exception) {
+        // 【健壮性】重置失败不能把界面留在「重置中」状态，否则输入框会永久禁用。
+        Log.e(TAG, "resetSession failed for task=${task.id}", e)
+      } finally {
         setIsResettingSession(false)
-        onDone()
-        return@launch
       }
-
-      val config =
-        AgentRuntimeConfig(
-          model = model,
-          taskId = task.id,
-          actionChannel = actionChannel,
-          supportImage = supportImage,
-          supportAudio = supportAudio,
-          enableConversationConstrainedDecoding = enableConversationConstrainedDecoding,
-          systemInstruction = systemInstruction,
-          initialMessages = initialMessages,
-        )
-      runtimeExecutor.resetSession(config = config)
-
-      setIsResettingSession(false)
       onDone()
     }
   }

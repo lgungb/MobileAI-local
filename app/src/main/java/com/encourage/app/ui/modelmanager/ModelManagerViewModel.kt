@@ -567,12 +567,9 @@ constructor(
       curModelDownloadStatus.remove(model.name)
 
       // Update data store.
-      val importedModels = dataStoreRepository.readImportedModels().toMutableList()
-      val importedModelIndex = importedModels.indexOfFirst { it.fileName == model.name }
-      if (importedModelIndex >= 0) {
-        importedModels.removeAt(importedModelIndex)
-      }
-      dataStoreRepository.saveImportedModels(importedModels = importedModels)
+      // 【P0 数据一致性】改为原子删除：旧写法先读快照再全量写回，
+      // 并发时会把期间新导入的模型一起覆盖掉（表现为「模型自己消失」）。
+      dataStoreRepository.removeImportedModel(fileName = model.name)
     }
     _uiState.update {
       it.copy(
@@ -611,6 +608,10 @@ constructor(
             ModelInitializationStatusType.INITIALIZED
       ) {
         Log.d(TAG, "Model '${model.name}' has been initialized. Skipping.")
+        // 【T06】已初始化时不会重新注入提示词，丢弃这条「待应用」记录，
+        // 真正的提示词对齐交给 LlmChatViewModel.applySystemPromptToEngine 处理，
+        // 避免它残留下来污染后续从其他入口进入的会话。
+        model.pendingSystemInstruction = null
         onDone()
         return@launch
       }
@@ -633,6 +634,18 @@ constructor(
         status = ModelInitializationStatusType.INITIALIZING,
       )
 
+      // 【T06 提示词串台修复】初始化时优先采用「记录级提示词」。
+      //
+      // 旧逻辑（只读任务级全局提示词）是在这里把引擎的角色固定死的：用户在会话列表点「+」
+      // 选了「小说家」，`ConversationProfile.systemPrompt` 明明已正确落库，但只要走到本地推理，
+      // 引擎拿到的仍是 `system_prompt_llm_chat` 这个全局值 —— 选什么都一样，这就是"串台"。
+      //
+      // pendingSystemInstruction 由 LlmChatViewModel.bindProfile 在进入会话记录时写入，
+      // 未绑定记录的会话（从「模型」Tab 直接进能力页）保持为 null，行为与旧逻辑一致。
+      val systemPrompt =
+        model.pendingSystemInstruction?.takeIf { it.isNotBlank() }
+          ?: SystemPromptHelper.getEffectiveSystemPrompt(systemPromptRepository, task)
+
       val onDoneFn: (error: String) -> Unit = { error ->
         if (model.instance != null) {
           Log.d(TAG, "Model '${model.name}' initialized successfully")
@@ -640,6 +653,8 @@ constructor(
             model = model,
             status = ModelInitializationStatusType.INITIALIZED,
           )
+          // 【T06】记录引擎此刻真正拿到的提示词，供切换会话时比对。
+          model.appliedSystemInstruction = systemPrompt
           if (model.cleanUpAfterInit) {
             model.markInitializationFailed(
               IllegalStateException("Model cleaned up after initialization")
@@ -665,7 +680,9 @@ constructor(
       }
 
       // Call the model initialization function.
-      val systemPrompt = SystemPromptHelper.getEffectiveSystemPrompt(systemPromptRepository, task)
+      // 提示词已在上面算好（优先记录级），这里直接注入。
+      // 立刻消费掉「待应用」值：本次初始化已经用了它，不能再留给下一次。
+      model.pendingSystemInstruction = null
 
       // 【N8】按模型恢复其记忆的默认后端（CPU/GPU/NPU/TPU）：
       // 每个模型独立记忆自己的后端，切换对话时各自用各自的，避免「A 模型用 GPU、
@@ -984,14 +1001,10 @@ constructor(
     }
 
     // Add to data store.
-    val importedModels = dataStoreRepository.readImportedModels().toMutableList()
-    val importedModelIndex = importedModels.indexOfFirst { info.fileName == it.fileName }
-    if (importedModelIndex >= 0) {
-      Log.d(TAG, "duplicated imported model found in data store. Removing it first")
-      importedModels.removeAt(importedModelIndex)
-    }
-    importedModels.add(info)
-    dataStoreRepository.saveImportedModels(importedModels = importedModels)
+    // 【P0 数据一致性】改为原子 upsert（同名先删后加），
+    // 避免与「删除模型 / 再次导入」并发时把对方的改动覆盖掉。
+    Log.d(TAG, "Upserting imported model '${info.fileName}' into data store.")
+    dataStoreRepository.upsertImportedModel(fileName = info.fileName, importedModel = info)
   }
 
   fun getTokenStatusAndData(): TokenStatusAndData {

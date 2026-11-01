@@ -33,6 +33,7 @@ import com.encourage.app.data.DataStoreRepository
 import com.encourage.app.data.DefaultDataStoreRepository
 import com.encourage.app.data.DefaultDownloadRepository
 import com.encourage.app.data.DownloadRepository
+import com.encourage.app.data.backupReplaceCorruptionHandler
 import com.encourage.app.data.conversation.ConversationProfileRepository
 import com.encourage.app.proto.BenchmarkResults
 import com.encourage.app.proto.CutoutCollection
@@ -95,6 +96,9 @@ internal object AppModule {
   ): DataStore<Settings> {
     return DataStoreFactory.create(
       serializer = settingsSerializer,
+      // 【P0】损坏兜底：备份坏文件 + 回落到默认设置，避免开屏即崩。
+      corruptionHandler =
+        backupReplaceCorruptionHandler(context, "settings.pb") { Settings.getDefaultInstance() },
       produceFile = { context.dataStoreFile("settings.pb") },
     )
   }
@@ -108,6 +112,11 @@ internal object AppModule {
   ): DataStore<CutoutCollection> {
     return DataStoreFactory.create(
       serializer = cutoutsSerializer,
+      // 【P0】损坏兜底：抠图集合损坏时回落到空集合。
+      corruptionHandler =
+        backupReplaceCorruptionHandler(context, "cutouts.pb") {
+          CutoutCollection.getDefaultInstance()
+        },
       produceFile = { context.dataStoreFile("cutouts.pb") },
     )
   }
@@ -121,6 +130,10 @@ internal object AppModule {
   ): DataStore<UserData> {
     return DataStoreFactory.create(
       serializer = userDataSerializer,
+      // 【P0】损坏兜底：user_data.pb 装着全部会话与设置，损坏时先备份再回落默认值，
+      // 保证 App 能启动、用户还能取回损坏前的文件。
+      corruptionHandler =
+        backupReplaceCorruptionHandler(context, "user_data.pb") { UserData.getDefaultInstance() },
       produceFile = { context.dataStoreFile("user_data.pb") },
     )
   }
@@ -134,6 +147,11 @@ internal object AppModule {
   ): DataStore<BenchmarkResults> {
     return DataStoreFactory.create(
       serializer = benchmarkResultsSerializer,
+      // 【P0】损坏兜底：跑分记录损坏时回落到空结果（可重跑）。
+      corruptionHandler =
+        backupReplaceCorruptionHandler(context, "benchmark_results.pb") {
+          BenchmarkResults.getDefaultInstance()
+        },
       produceFile = { context.dataStoreFile("benchmark_results.pb") },
     )
   }
@@ -147,6 +165,9 @@ internal object AppModule {
   ): DataStore<Skills> {
     return DataStoreFactory.create(
       serializer = skillsSerializer,
+      // 【P0】损坏兜底：技能清单损坏时先备份，再回落到默认实例。
+      corruptionHandler =
+        backupReplaceCorruptionHandler(context, "skills.pb") { Skills.getDefaultInstance() },
       produceFile = { context.dataStoreFile("skills.pb") },
     )
   }

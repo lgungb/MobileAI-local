@@ -315,6 +315,23 @@ data class Model(
   var accessToken: String? = null,
 
   /**
+   * 【T06 提示词串台修复】待应用的系统提示词。
+   *
+   * 进入某条会话记录时，[com.encourage.app.ui.llmchat.LlmChatViewModel.bindProfile] 会把该记录的
+   * 记录级提示词挂在这里。`initializeModel` 初始化模型时优先采用它，而不是任务级全局默认值；
+   * 消费后立即置空，避免影响后续从其他入口（如「模型」Tab）进入的会话。
+   */
+  var pendingSystemInstruction: String? = null,
+
+  /**
+   * 【T06 提示词串台修复】引擎当前**已真正生效**的系统提示词。
+   *
+   * 仅在本地推理路径有意义（云端每轮请求都会自带提示词）。用于在切换会话记录时判断
+   * 「记录级提示词是否已经注入引擎」，不一致才重建会话上下文，避免不必要的 KV cache 重置。
+   */
+  var appliedSystemInstruction: String? = null,
+
+  /**
    * Indicates whether the model currently on the device is an older version that can be updated.
    *
    * This field is managed by the app. It is set to true when the app detects that one of the

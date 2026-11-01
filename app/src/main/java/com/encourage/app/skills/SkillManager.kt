@@ -930,9 +930,9 @@ constructor(
    * reads/writes; must be called within a [kotlinx.coroutines.Dispatchers.IO] context.
    */
   private fun updateSkillInDataStore(oldName: String, updatedSkill: Skill) {
-    val allSkills = dataStoreRepository.getAllSkills()
-    val updatedList = allSkills.map { if (it.name == oldName) updatedSkill else it }
-    dataStoreRepository.setSkills(updatedList)
+    // 【P0 数据一致性】改为原子替换：旧写法先读全部再全量写回，
+    // 并发时会覆盖掉期间新增或新勾选的技能（表现为「勾选自己变回去」）。
+    dataStoreRepository.replaceSkill(oldName = oldName, updatedSkill = updatedSkill)
   }
 
   companion object {

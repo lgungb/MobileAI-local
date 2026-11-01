@@ -78,6 +78,25 @@ interface DataStoreRepository {
 
   fun readImportedModels(): List<ImportedModel>
 
+  /**
+   * 【P0 数据一致性】原子地移除一个已导入模型。
+   *
+   * 旧写法是「`readImportedModels()` 取快照 → 改列表 → `saveImportedModels(全量)`」，
+   * 在并发窗口内会把别人刚写入的模型一起覆盖掉（用户感知为「模型自己消失了」）。
+   * 这里把读取和修改都放进同一个 [DataStore.updateData] 事务里完成。
+   *
+   * @param fileName 已导入模型的文件名（与 `ImportedModel.fileName` 对应）。
+   */
+  fun removeImportedModel(fileName: String)
+
+  /**
+   * 【P0 数据一致性】原子地写入/替换一个已导入模型（同名先删后加，保持追加在末尾的顺序）。
+   *
+   * @param fileName 用于判重的文件名。
+   * @param importedModel 要写入的新记录。
+   */
+  fun upsertImportedModel(fileName: String, importedModel: ImportedModel)
+
   fun isTosAccepted(): Boolean
 
   fun acceptTos()
@@ -117,6 +136,18 @@ interface DataStoreRepository {
   fun setAllSkillsSelected(selected: Boolean)
 
   fun getAllSkills(): List<Skill>
+
+  /**
+   * 【P0 数据一致性】原子地替换一条技能记录。
+   *
+   * 旧写法「`getAllSkills()` → map → `setSkills(全量)`」会在并发时把同一时刻新加/新勾选的
+   * 技能覆盖回去（用户感知为「技能勾选自己变回去了」）。改为在同一个
+   * [DataStore.updateData] 事务内完成查找与替换。
+   *
+   * @param oldName 被替换技能的旧名字；找不到时不做任何修改。
+   * @param updatedSkill 替换后的技能记录。
+   */
+  fun replaceSkill(oldName: String, updatedSkill: Skill)
 
   fun deleteSkill(name: String)
 
@@ -277,6 +308,29 @@ class DefaultDataStoreRepository(
     return runBlocking {
       val settings = dataStore.data.first()
       settings.importedModelList
+    }
+  }
+
+  override fun removeImportedModel(fileName: String) {
+    runBlocking {
+      dataStore.updateData { settings ->
+        val remaining = settings.importedModelList.filterNot { it.fileName == fileName }
+        // 没有命中就不要触发一次无意义的写盘（写盘本身是有成本的）。
+        if (remaining.size == settings.importedModelCount) {
+          settings
+        } else {
+          settings.toBuilder().clearImportedModel().addAllImportedModel(remaining).build()
+        }
+      }
+    }
+  }
+
+  override fun upsertImportedModel(fileName: String, importedModel: ImportedModel) {
+    runBlocking {
+      dataStore.updateData { settings ->
+        val updated = settings.importedModelList.filterNot { it.fileName == fileName } + importedModel
+        settings.toBuilder().clearImportedModel().addAllImportedModel(updated).build()
+      }
     }
   }
 
@@ -443,6 +497,21 @@ class DefaultDataStoreRepository(
 
   override fun getAllSkills(): List<Skill> {
     return runBlocking { skillsDataStore.data.first().skillList }
+  }
+
+  override fun replaceSkill(oldName: String, updatedSkill: Skill) {
+    runBlocking {
+      skillsDataStore.updateData { skills ->
+        val current = skills.skillList
+        if (current.none { it.name == oldName }) {
+          // 没命中就原样返回，避免触发一次无意义的写盘。
+          skills
+        } else {
+          val newSkills = current.map { if (it.name == oldName) updatedSkill else it }
+          skills.toBuilder().clearSkill().addAllSkill(newSkills).build()
+        }
+      }
+    }
   }
 
   override fun deleteSkill(name: String) {
