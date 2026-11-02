@@ -992,6 +992,12 @@
   <string name="local_server_lan_desc">绑定 0.0.0.0，同一网络的其他设备可调用本服务</string>
   <string name="local_server_lan_no_token_warn">安全提醒：已开放局域网访问但未设置 Token，同一网络内的任何人都能调用本地模型。</string>
   <string name="local_server_usage_title">使用示例（curl）</string>
+  <!-- 【N10】本地 API 服务的「对外提供模型」锁定 -->
+  <string name="local_server_model">对外提供的模型</string>
+  <string name="local_server_model_auto">自动（第一个已下载模型）</string>
+  <string name="local_server_model_hint">外部客户端只能调用这一个模型；请求里的 model 名与它不一致会被拒绝（404 model_not_found）。当前：%1$s</string>
+  <string name="local_server_model_hint_empty">还没有可对外提供的模型，请先下载一个模型。</string>
+  <string name="local_server_model_empty">没有检测到已下载的大模型。请先到「模型」页下载一个，再回来这里选择。</string>
 
   <!-- 文件管理器（M6 / H6） -->
   <string name="drawer_file_manager_label">文件管理器</string>

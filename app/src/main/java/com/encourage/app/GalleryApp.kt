@@ -61,9 +61,10 @@ fun GalleryApp(
     ).taskAiInvoker()
   }
   LaunchedEffect(localApiServer, taskAiInvoker) {
-    val provider = { modelManagerViewModel.getAllDownloadedModels().firstOrNull() }
-    localApiServer.modelProvider = provider
-    taskAiInvoker.modelProvider = provider
+    // 【N10】本地 API 服务需要「整个已下载模型目录」，由设置页的锁定模型决定对外提供哪一个；
+    // 定时任务 AI 仍用列表第一个。
+    localApiServer.modelCatalog = { modelManagerViewModel.getAllDownloadedModels() }
+    taskAiInvoker.modelProvider = { modelManagerViewModel.getAllDownloadedModels().firstOrNull() }
   }
 
   // 【T05-① 资源生命周期】低内存时才释放模型实例。

@@ -169,6 +169,15 @@ message LocalServerConfig {
   string token = 3;
   // 是否监听所有网卡（0.0.0.0）。false 时仅监听本机回环（127.0.0.1）。
   bool bind_all_interfaces = 4;
+
+  // 【N10】对外提供的模型（锁定的模型，key = Model.name）。
+  //
+  // 空字符串 = 自动模式：取「已下载 LLM 模型列表里的第一个」（旧行为）。
+  // 非空 = 这个本地 API 只服务这一个模型：
+  //   - GET  /v1/models 只返回它；
+  //   - POST /v1/chat/completions 请求体里的 model 为空则用它，
+  //     写了别的名字直接 404 model_not_found（避免「填 A 跑 B」的静默错配）。
+  string model_name = 5;
 }
 
 // 一条定时任务（M3 / 需求 E1 E2）。

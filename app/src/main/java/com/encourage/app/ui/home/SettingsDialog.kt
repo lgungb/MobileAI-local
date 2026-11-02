@@ -210,7 +210,8 @@ fun SettingsDialog(
           TaskCenterSection(onOpenCenter = { showTaskCenter = true })
 
           // 【M4】本地 API 服务（需求 B2）：内嵌 OpenAI 兼容端点。
-          LocalServerSection()
+          // 【N10】传入 modelManagerViewModel：设置页要列出「已下载模型」，让用户锁定对外提供哪一个。
+          LocalServerSection(modelManagerViewModel = modelManagerViewModel)
 
           // HF Token management.
           Column(

@@ -67,11 +67,20 @@ constructor(
     viewModelScope.launch { repository.update { it.copy(bindAllInterfaces = bind) } }
   }
 
+  /**
+   * 【N10】设置对外提供的模型（锁定模型）。
+   *
+   * 传空串 = 自动模式（已下载列表的第一个）。服务侧无需重启：锁定名在请求到达时读取。
+   */
+  fun setModelName(modelName: String) {
+    viewModelScope.launch { repository.update { it.copy(modelName = modelName) } }
+  }
+
   /** 立即重启服务（配置变更后手动生效兜底）。 */
   fun restart() {
     viewModelScope.launch {
       val s = repository.settings.first()
-      if (s.enabled) apiServer.start(s) else apiServer.stop()
+      apiServer.applySettings(s, forceRestart = true)
     }
   }
 }

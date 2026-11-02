@@ -992,6 +992,12 @@
   <string name="local_server_lan_desc">Bind 0.0.0.0 so other devices on the network can call this server</string>
   <string name="local_server_lan_no_token_warn">Security: LAN access is enabled without an auth token. Anyone on your network can use the local model.</string>
   <string name="local_server_usage_title">Usage example (curl)</string>
+  <!-- 【N10】本地 API 服务的「对外提供模型」锁定 -->
+  <string name="local_server_model">Served model</string>
+  <string name="local_server_model_auto">Auto (first downloaded model)</string>
+  <string name="local_server_model_hint">Clients can only use this model. A request whose model name differs gets 404 model_not_found. Current: %1$s</string>
+  <string name="local_server_model_hint_empty">No model is being served yet. Download an LLM model first.</string>
+  <string name="local_server_model_empty">No downloaded LLM model found. Download one in the Models tab, then come back and pick it here.</string>
 
   <!-- 文件管理器（M6 / H6） -->
   <string name="drawer_file_manager_label">File manager</string>
