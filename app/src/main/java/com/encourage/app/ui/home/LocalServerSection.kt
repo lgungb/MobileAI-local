@@ -63,10 +63,13 @@ fun LocalServerSection(
           style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
         )
         Text(
-          stringResource(
-            if (running) R.string.local_server_status_running
-            else R.string.local_server_status_stopped
-          ),
+          // 【修复】running 状态的文案带 %1$d 端口占位符，原先没传参 → 直接显示 "运行中 · 端口 %1$d"。
+          // 这里传 effectivePort（已按 1024~65535 做合法性回退），显示的即真正监听的端口。
+          if (running) {
+            stringResource(R.string.local_server_status_running, settings.effectivePort)
+          } else {
+            stringResource(R.string.local_server_status_stopped)
+          },
           style = MaterialTheme.typography.bodySmall,
           color =
             if (running) MaterialTheme.colorScheme.primary
