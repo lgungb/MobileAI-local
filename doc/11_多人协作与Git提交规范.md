@@ -70,6 +70,16 @@ net use S: "\\192.168.0.123\share" /user:lin "123" /persistent:yes
 
 ### 3.3 把项目接到共享库
 
+**第 0 步（每台机器做一次，漏了必报错）**：网络盘上那个仓库的属主是服务器上的 `lin`，
+不是你本机账号，git 出于安全会拒绝操作，先声明信任：
+
+```bash
+git config --global --add safe.directory "S:/git/SeAI_Encourage.git"
+```
+
+> 报错长这样：`fatal: detected dubious ownership in repository at 'S:/git/SeAI_Encourage.git'`。
+> 看到它就是这个原因，补上面这条命令即可。内网自家共享，声明信任没有额外风险。
+
 **情况 A：本地已经有项目目录**（当前这台机器就是这种情况）
 
 ```bash
@@ -95,8 +105,9 @@ git status             # 工作区干净
 ```
 
 > **为什么用盘符路径而不是 SSH**：SSH 地址 `ssh://lin@192.168.0.123/home/lin/share/git/SeAI_Encourage.git`
-> 也能用，但每台机器要先配免密密钥，否则每次 push 都弹密码。用 S 盘不需要密钥、不需要额外配置，
-> 而且顺手就能在资源管理器里看到仓库。**代价见第 7 节**：网络盘上的 git 偶发锁文件冲突。
+> 也能用，但每台机器要先配免密密钥，否则每次 push 都弹密码。用 S 盘不需要密钥，而且顺手就能在
+> 资源管理器里看到仓库。**代价**：需要做一次 `safe.directory` 信任声明（3.3 第 0 步），
+> 以及网络盘上的 git 偶发锁文件冲突（见第 7 节）。
 
 ---
 
@@ -254,7 +265,7 @@ Gradle 守护进程之间会抢文件锁，两台机器同时构建（或同一�
 | --- | --- | --- |
 | `! [rejected] main -> main (non-fast-forward)` | 共享库里已有别人的新提交 | `git pull --rebase share main` 后重新 push |
 | `Unable to create '.../.git/index.lock'` | 有另一个 git 进程在操作同一目录 | 确认没在跑 `git status`/构建后，删掉 `index.lock` |
-| `detected dubious ownership` | 直接对网络盘上的仓库执行命令（不是通过 clone 到本机） | 只把 `share` 当远程用，别在里面直接 `git` 操作 |
+| `detected dubious ownership` | 共享库属主是服务器账号 `lin`，与本机账号不同，git 默认拒绝 | `git config --global --add safe.directory "S:/git/SeAI_Encourage.git"`（见 3.3 第 0 步） |
 | `Permission denied (publickey)` | 走的是 SSH 地址但没配密钥 | 改用 `S:/git/...` 路径（第 3.3 节） |
 | S 盘打叉 / 提示找不到网络路径 | 共享连接断了（服务器重启、睡眠唤醒） | 重新执行 `net use S: ...`，或资源管理器断开重连 |
 | 构建日志停在半路、无结论 | 多个 Gradle daemon 抢锁，或内存吃紧被系统杀 | `./gradlew.bat --stop` 清干净后重跑 |
