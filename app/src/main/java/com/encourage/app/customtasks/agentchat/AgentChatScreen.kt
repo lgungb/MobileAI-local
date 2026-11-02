@@ -78,7 +78,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.encourage.app.GalleryEvent
 import com.encourage.app.R
-import com.encourage.app.agent.PromptExpander
 import com.encourage.app.common.LOCAL_URL_BASE
 import com.encourage.app.data.AgentSkillsURLs
 import com.encourage.app.data.BuiltInTaskId
@@ -86,7 +85,6 @@ import com.encourage.app.data.agents.AgentDefinition
 import com.encourage.app.data.Model
 import com.encourage.app.data.Task
 import com.encourage.app.firebaseAnalytics
-import com.encourage.app.skills.formatSelectedSkills
 import com.encourage.app.tools.AskInfoToolAction
 import com.encourage.app.tools.AskMcpToolCallPermissionAction
 import com.encourage.app.tools.CallJsToolAction
@@ -107,6 +105,7 @@ import com.encourage.app.ui.common.chat.LogMessageLevel
 import com.encourage.app.ui.common.chat.SendMessageTrigger
 import com.encourage.app.ui.common.chat.convertToLitertMessage
 import com.encourage.app.ui.llmchat.LlmChatScreen
+import com.encourage.app.ui.llmchat.AgentSessionBinder
 import com.encourage.app.ui.llmchat.LlmChatViewModel
 import com.encourage.app.ui.modelmanager.ModelInitializationStatusType
 import com.encourage.app.ui.modelmanager.ModelManagerViewModel
@@ -115,7 +114,6 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONObject
 
@@ -170,6 +168,30 @@ fun AgentChatScreen(
       currentPermissionAction?.result?.complete(permissionGranted)
       currentPermissionAction = null
     }
+
+  // 【B1 修复】把「技能/工具注入 + 工具动作通道 + 约束解码」一次性绑定到 ViewModel。
+  //
+  // 之前这三样只在下面 resetSessionWithCurrentSkillsAndMcps 那条路径里手动传，
+  // 而「选 Agent / 手改系统提示词 / 打开写过提示词的特调记录」走的是普通 resetSession，
+  // 三样全丢 —— 模型看不到技能名、工具反馈发不回界面、工具调用 JSON 也不受约束。
+  // 绑定后由 ViewModel 在 resetSession 内部统一补齐，任何入口都绕不过去。
+  DisposableEffect(viewModel, agentTools, task) {
+    viewModel.bindAgentSession(
+      object : AgentSessionBinder {
+        override suspend fun decorateSystemPrompt(task: Task, raw: String): String =
+          buildAgentSystemPrompt(
+            rawPrompt = raw,
+            skillsProvider = agentTools.skillsProvider,
+            toolsPrompt = agentTools.toolsPromptOrEmpty(),
+          )
+
+        override val actionChannel = agentTools.sendActionChannel
+
+        override val enableConstrainedDecoding: Boolean = true
+      }
+    )
+    onDispose { viewModel.bindAgentSession(null) }
+  }
 
   LaunchedEffect(task) { viewModel.loadSystemPrompt(task) }
   val uiSystemPrompt by viewModel.uiSystemPrompt.collectAsState()
@@ -300,7 +322,6 @@ fun AgentChatScreen(
         resetSessionWithCurrentSkillsAndMcps(
           viewModel,
           modelManagerViewModel,
-          skillManagerViewModel,
           task,
           curSystemPrompt,
           agentTools,
@@ -684,7 +705,6 @@ fun AgentChatScreen(
             resetSessionWithCurrentSkillsAndMcps(
               viewModel,
               modelManagerViewModel,
-              skillManagerViewModel,
               task,
               curSystemPrompt,
               agentTools,
@@ -707,7 +727,6 @@ fun AgentChatScreen(
             resetSessionWithCurrentSkillsAndMcps(
               viewModel,
               modelManagerViewModel,
-              skillManagerViewModel,
               task,
               curSystemPrompt,
               agentTools,
@@ -798,7 +817,6 @@ private fun updateProgressPanel(viewModel: LlmChatViewModel, model: Model, agent
 private suspend fun resetSessionWithCurrentSkillsAndMcps(
   viewModel: LlmChatViewModel,
   modelManagerViewModel: ModelManagerViewModel,
-  skillManagerViewModel: SkillManagerViewModel,
   task: Task,
   curSystemPrompt: String,
   agentTools: AgentTools,
@@ -808,22 +826,15 @@ private suspend fun resetSessionWithCurrentSkillsAndMcps(
 ) {
   val model = modelManagerViewModel.uiState.value.selectedModel
   val litertMessages = initialMessages.mapNotNull { convertToLitertMessage(it) }
-  val toolsPrompt = agentTools.mcpManagerViewModel.getToolsPrompt()
-  val actualSystemPrompt = getEffectiveBaseSystemPrompt(curSystemPrompt, toolsPrompt.isNotEmpty())
 
-  // suspend 函数直接调用，不再用 runBlocking 阻塞主线程。
-  val selectedSkills =
-    withContext(Dispatchers.Default) { skillManagerViewModel.skillManager.getAvailableSkills() }
+  // 【B1】统一出口：技能菜单 + MCP 工具清单只在这里注入一次，
+  // 不再和 AgentChatTaskModule / ViewModel 各写一份（那正是漏注入的来源）。
   val finalSystemPrompt =
-    PromptExpander()
-      .formatSystemInstructions(
-        template = actualSystemPrompt,
-        substitutions =
-          mapOf(
-            "___SKILLS___" to formatSelectedSkills(selectedSkills),
-            "___TOOLS___" to toolsPrompt,
-          ),
-      )
+    buildAgentSystemPrompt(
+      rawPrompt = curSystemPrompt,
+      skillsProvider = agentTools.skillsProvider,
+      toolsPrompt = agentTools.toolsPromptOrEmpty(),
+    )
 
   viewModel.resetSession(
     task = task,

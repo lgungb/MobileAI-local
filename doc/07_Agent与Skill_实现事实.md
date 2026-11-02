@@ -158,70 +158,97 @@ schema 由 `@Tool` / `@ToolParam` 注解生成。
 
 ---
 
-## 7. 已知缺陷（2026-11-02 逐条核对，均未修）
+## 7. 已知缺陷（2026-11-02 核对；B1/B2/B3 已于 `v65` 修复）
 
 > 判定标准：能指到具体代码行为、且能说清"用户会看到什么"。只写推测的不进本节。
 > 面向用户的讲解版见 `HUMAN_技能与工具_人话手册.md` §4。
+>
+> **状态图例**：✅ 已修（附修法与验证点）｜⬜ 未修｜🔍 隐患未复现
 
-### B1【P0】技能菜单在三条路径上被整段抹掉
+### ✅ B1【P0，已修】技能菜单在三条路径上被整段抹掉
 
 **机制**：`___SKILLS___` / `___TOOLS___` 的替换只发生在两处——
-`AgentChatTaskModule.kt:172-181`（首次初始化）与 `AgentChatScreen.kt:817-826`（页面"重置会话"）。
+`AgentChatTaskModule.kt`（首次初始化）与 `AgentChatScreen.kt`（页面"重置会话"）。
 但 `LlmChatViewModel.resetSession()` 本身**不做替换**，它只是把字符串交给执行器。
-`PromptExpander.formatSystemInstructions()` 是纯 `replace`，模板里没有占位符就什么都不做、也不报错
-（`agent/PromptExpander.kt:29-35`）。
+`PromptExpander.formatSystemInstructions()` 是纯 `replace`，模板里没有占位符就什么都不做、也不报错。
 
 **三条绕过路径**：
 
 | 触发 | 路径 | 结果 |
 | --- | --- | --- |
-| 在 Agent 页选 Agent | `AgentChatScreen.kt:727-732` → `applySystemPromptChange` | 系统提示词 = `agent.systemPrompt`（纯人设，无占位符） |
-| 手动编辑系统提示词 | `ModelPageAppBar.kt:280` → `applySystemPromptChange`（`LlmChatViewModel.kt:496-503`） | 同上 |
-| 打开写过提示词的「特调记录」 | `LlmChatViewModel.bindProfile:275-308` → `applySystemPromptToEngine`；未初始化时经 `ModelManagerViewModel.kt:706` 的 `pendingSystemInstruction` 进 `initializeModelFn` | 同上 |
+| 在 Agent 页选 Agent | `AgentChatScreen.kt` → `applySystemPromptChange` | 系统提示词 = `agent.systemPrompt`（纯人设，无占位符） |
+| 手动编辑系统提示词 | `ModelPageAppBar.kt` → `applySystemPromptChange` | 同上 |
+| 打开写过提示词的「特调记录」 | `LlmChatViewModel.bindProfile` → `applySystemPromptToEngine`；未初始化时经 `pendingSystemInstruction` 进 `initializeModelFn` | 同上 |
 
 **用户可见现象**：技能数量徽标照常显示，但模型完全不知道有技能；要么直接编答案，
 要么猜一个技能名调 `load_skill` 拿到 `"Skill not found"`，反复重试 → 表现为"卡很久且什么都没干"。
 
-**次级问题**：编辑器「恢复默认」（`ConfigDialog.kt:252-257`）只把模板文本填回输入框，
-保存后仍走"原文"路径 → 模型看到字面量 `___SKILLS___`。要恢复必须再点一次"重置会话"。
+**修法（v65）—— 两层收口，任何入口都绕不过去**：
 
-### B2【P0】提示词里的 MCP 工具名写错
+1. **`PromptExpander.expand()` 兼容无占位符**：模板含占位符 → 原地替换；
+   不含 → 在末尾追加 `--- SKILLS ---` / `--- MCP TOOLS ---` 区块。
+   追加前检查锚点是否已存在，避免重复注入（16K 下 token 很贵）。
+2. **`LlmChatViewModel.resetSession()` 成为唯一出口**：所有传入的系统提示词先过
+   `decorateSystemInstruction()`，由 Agent 页注册的 `AgentSessionBinder` 补齐技能与工具清单。
+   同时把**工具动作通道**与**约束解码**也由 binder 补上 —— 原先只有"重置会话"一条路径传了这两样，
+   其余路径全丢，这也是"点了没反应、一直转圈"的来源。
+3. **拼装逻辑单一实现**：`buildAgentSystemPrompt()` 由模型初始化、页面重置、ViewModel 收口三处共用。
+4. **比对口径对齐**：`applySystemPromptToEngine` 改用展开后的文本比对，
+   否则每次进页面都误判"不一致"而白重建一次会话（几秒卡顿）。
 
-`AgentChatTaskModule.kt:80` 与 `:93` 写的是 `runMcpTool`，实际注册名是 `run_mcp_tool`（见 §4 命名规则）。
-模型照提示词调用 → 引擎无此函数 → MCP 路径直接不可用。
+**验证点**：勾 2 个技能 → 选一个 Agent → 问"用二维码技能把 example.com 做成二维码"。
+logcat 应出现 `AGLoadSkillTool: load skill.` 且正文不是 `Skill not found`；
+`AGLlmChatViewModel` 不应出现 `Rebind system prompt ...` 的重复刷屏。
 
-### B3【P1】没有 MCP 工具时，提示词禁止模型正常回答
+### ✅ B2【P0，已修】提示词里的 MCP 工具名写错
 
-`getEffectiveBaseSystemPrompt(..., hasMcpTools=false)` 返回 `DEFAULT_SYSTEM_PROMPT_SKILLS_ONLY`
-（`AgentChatTaskModule.kt:277-283`），其第 4 步为：
+原文写 `runMcpTool`，实际注册名是 `run_mcp_tool`（LiteRT-LM 0.16.0 的 `ReflectionTool`
+会做 `camelToSnakeCase`，见 §4）。模型照提示词调用 → 引擎无此函数 → MCP 路径直接不可用。
+
+**修法（v65）**：提示词内两处 `runMcpTool` 改为 `run_mcp_tool`。
+同时把"工具名一律写蛇形"写进 `AgentChatTaskModule.kt` 的注释，防止以后又改回驼峰。
+
+### ✅ B3【P1，已修】没有 MCP 工具时，提示词禁止模型正常回答
+
+`getEffectiveBaseSystemPrompt(..., hasMcpTools=false)` 返回 `DEFAULT_SYSTEM_PROMPT_SKILLS_ONLY`，
+其第 4 步原为：
 
 > If no relevant skill is found, output "No relevant skills found" and stop.
 
 任何与技能无关的普通提问都会命中这条 → 模型只回一句 `No relevant skills found`。
 这不是模型能力问题，是提示词显式禁止作答。
 
-### B4【P2】"是否默认提示词"用字符串全等判定
+**修法（v65）**：两版提示词的第 1 / 第 4 步都改成
+"没有匹配就用普通对话直接回答，不得拒答、不得提前停止"。
+并在开头补一句"普通问题不需要技能"，降低小模型"为了走流程而卡住"的概率。
 
-`isDefaultSystemPrompt()`（`AgentChatTaskModule.kt:271-274`）只与两个常量做 `==`。
+**迁移**：历史版本把旧提示词存进了用户数据。`isDefaultSystemPrompt()` 现在用旧版独有的
+固定话术（`"No relevant skills found" and stop` 等）做特征识别，命中即视为默认提示词，
+升级后自动切到新版 —— 否则用户装上新包照样被拒答。
+
+### ⬜ B4【P2，未修】"是否默认提示词"用字符串全等判定
+
+`isDefaultSystemPrompt()` 只与两个常量做 `==`（现已补上旧版话术特征匹配，但本质仍是字符串比较）。
 用户手动改过一个字、或以后改了默认提示词文案，判定即失效，MCP 开关不再影响提示词选择。
+**建议**：改成"模板是否包含占位符"判定，语义更稳。
 
-### B5【P2】`agent_id` / `skill_ids` 字段预留但从未写入
+### ⬜ B5【P2，未修】`agent_id` / `skill_ids` 字段预留但从未写入
 
 `conversation_profile.proto` 里有字段，全仓无写入点。记录无法真正绑定 Agent 与技能集，
 每次进会话只能靠全局的"当前勾选"。
 
-### B6【P1】工具循环没有轮次上限
+### ⬜ B6【P1，未修】工具循环没有轮次上限
 
-`DefaultAgentRuntimeExecutor.executeStream()` 只调用一次 `runInference`（`:145-177`），
-ReAct 循环在引擎内部。Kotlin 侧唯二保护是 JS 60 秒超时（`AgentChatScreen.kt:359`）
-与等待 JS 函数就绪 10 秒（`:428`）。小模型反复调用工具时会一直转到 token 耗尽。
+`DefaultAgentRuntimeExecutor.executeStream()` 只调用一次 `runInference`，ReAct 循环在引擎内部。
+Kotlin 侧唯二保护是 JS 60 秒超时与等待 JS 函数就绪 10 秒。小模型反复调用工具时会一直转到 token 耗尽。
 
-### B7【P2，隐患未复现】工具依赖 `lateinit` 赋值时序
+### 🔍 B7【P2，隐患未复现】工具依赖 `lateinit` 赋值时序
 
 `AgentToolsImpl` 的 `context / taskId / dataStoreRepository / mcpManagerViewModel` 都是 `lateinit`，
-由 Composable 体在 `AgentChatScreen.kt:139-143` 赋值；而 `runMcpTool` 是 `by lazy` 且捕获 `taskId`。
-若在赋值前触发 `getAvailableTools()`（例如模型初始化早于首帧组合），会抛
-`UninitializedPropertyAccessException`。当前未复现，属结构性隐患。
+由 Composable 体在 `AgentChatScreen.kt` 赋值；而 `runMcpTool` 是 `by lazy` 且捕获 `taskId`。
+若在赋值前触发 `getAvailableTools()` 会抛 `UninitializedPropertyAccessException`。
+**已做的止血**：v65 新增 `AgentTools.toolsPromptOrEmpty()`，所有非界面入口改走它，
+读不到就当没有 MCP 工具，不再抛异常。根因（构造注入）仍未改。
 
 ---
 
@@ -244,19 +271,22 @@ ReAct 循环在引擎内部。Kotlin 侧唯二保护是 JS 60 秒超时（`Agent
 
 ---
 
-## 9. 最小修法（未实施，供排期）
+## 9. 修法进度
 
-按代价从低到高，前三项可以一次做完：
+### 9.1 已实施（v65 / 2026-11-02）
 
-1. **收口提示词拼装**（修 B1）：把 `formatSelectedSkills` + `getToolsPrompt` 的替换下沉到
-   `LlmChatViewModel.resetSession()` 之前，做成唯一出口；任何入口传进来的模板都先展开再下发给执行器。
-   同时让 `getEffectiveBaseSystemPrompt` 在"用户给了自定义提示词"时**追加**技能与工具段落，
-   而不是整体替换。
-2. **改提示词文案**（修 B2/B3）：`runMcpTool` → `run_mcp_tool`；
-   把"找不到就停止"改成"找不到技能就用普通对话回答"。
+1. **收口提示词拼装**（修 B1）：`PromptExpander.expand()` 支持无占位符追加；
+   `LlmChatViewModel.resetSession()` 成为唯一出口；`buildAgentSystemPrompt()` 单一实现。
+   顺带把 **动作通道** 与 **约束解码** 也纳入收口（原先只有"重置会话"一条路径传）。
+2. **改提示词文案**（修 B2/B3）：`runMcpTool` → `run_mcp_tool`；"找不到就停" → "照常回答"；
+   并加旧版提示词特征识别做迁移。
+
+### 9.2 待做（优先级从高到低）
+
 3. **给循环加上限**（修 B6）：在 `executeStream` 侧统计工具事件数，超过 N 次（建议 6）强制收尾。
-4. **顺手清理**（修 B4/B5/B7）：改成"模板是否包含占位符"判定；落实 `agent_id/skill_ids` 写入；
-   把 `AgentToolsImpl` 的 `lateinit` 改成构造注入。
+   这是当前唯一还会"烧到 token 耗尽"的问题。
+4. **改成占位符判定**（修 B4）：`isDefaultSystemPrompt` 用 "包含 `___SKILLS___`" 替代字符串全等。
+5. **落实 `agent_id/skill_ids` 写入**（修 B5），把 Agent 与技能集绑定到会话记录。
+6. **`AgentToolsImpl` 改构造注入**（修 B7），彻底消除 `lateinit` 时序隐患。
 
-> 验收方式：勾 2 个技能 → 选一个 Agent → 说"用二维码技能把 example.com 做成二维码"。
-> 预期日志出现 `AGLoadSkillTool: load skill. Skill content:` 且正文非 `Skill not found`。
+> 验收方式见 §7 B1 末尾的"验证点"。

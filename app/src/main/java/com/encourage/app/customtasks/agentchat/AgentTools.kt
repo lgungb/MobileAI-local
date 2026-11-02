@@ -45,6 +45,15 @@ interface AgentTools : ToolsProvider {
   var resultImageToShow: CallJsSkillResultImage?
   var resultWebviewToShow: CallJsSkillResultWebview?
 
+  /**
+   * 【B1】安全读取「MCP 工具清单」提示词。
+   *
+   * `mcpManagerViewModel` 是 `lateinit`，由 `AgentChatScreen` 在组合时赋值。
+   * 直接访问它有两处会炸：①还没进过界面就被调用；②界面销毁后仍在被调用。
+   * 这里统一兜住，返回空串即可（等价于「当前没有 MCP 工具」），绝不抛异常。
+   */
+  fun toolsPromptOrEmpty(): String
+
   fun sendToolAction(action: ToolAction)
 }
 
@@ -106,4 +115,12 @@ open class AgentToolsImpl : AgentTools {
   override fun sendToolAction(action: ToolAction) {
     runBlocking(Dispatchers.Default) { _actionChannel.send(action) }
   }
+
+  /** 【B1】见接口注释：管理器未注入或读取失败时返回空串，绝不抛异常。 */
+  override fun toolsPromptOrEmpty(): String =
+    try {
+      if (::mcpManagerViewModel.isInitialized) mcpManagerViewModel.getToolsPrompt() else ""
+    } catch (e: Exception) {
+      ""
+    }
 }

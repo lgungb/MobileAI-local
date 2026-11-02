@@ -87,6 +87,33 @@ private const val REMOTE_ATTACHMENT_IMAGE_HINT = "[用户在此处发送了一�
 private const val REMOTE_ATTACHMENT_AUDIO_HINT = "[用户在此处发送了一段语音，当前无法查看其内容]"
 
 /**
+ * 【B1 修复】Agent 会话的能力绑定（顶层接口，方便 `AgentChatScreen` 直接实现）。
+ *
+ * 背景：Agent（技能）页除了「系统提示词」之外，还依赖三样东西才能跑起来：
+ * 1. **技能/工具清单**必须真的写进提示词（否则模型不知道有哪些技能）；
+ * 2. **工具动作通道** `actionChannel` 必须传给执行器（否则技能进度、权限询问发不回界面，
+ *    表现就是「一直转圈、没有任何反馈」）；
+ * 3. **约束解码** `enableConversationConstrainedDecoding` 必须打开（否则模型吐出的工具调用
+ *    格式经常不合法，解析失败 → 看起来像「不调工具」）。
+ *
+ * 这三样原先只在 `AgentChatScreen` 的「重置会话」一条路径里手动传，
+ * 而「选 Agent / 手改提示词 / 打开特调记录」走的是普通 `resetSession`，三样全丢。
+ *
+ * 解法：由 Agent 页注册一个 binder，`resetSession` 在真正下发配置前统一补齐。
+ * 普通对话页不注册，行为完全不变。
+ */
+interface AgentSessionBinder {
+  /** 把技能/工具清单注入用户原文提示词。必须是幂等的。 */
+  suspend fun decorateSystemPrompt(task: Task, raw: String): String
+
+  /** 工具动作通道；null 表示不需要（例如纯文本对话）。 */
+  val actionChannel: SendChannel<ToolAction>?
+
+  /** 是否启用约束解码（保证工具调用 JSON 合法）。 */
+  val enableConstrainedDecoding: Boolean
+}
+
+/**
  * 【T05-②】本模块关心的「记录采样参数」键白名单。
  *
  * 【设计要点】运行时 `Model.getTypedConfigValue` 用 `key.label` 作键（如 `TopK`），
@@ -260,6 +287,34 @@ open class LlmChatViewModelBase(
     }
   }
 
+  /**
+   * 【B1 修复】Agent 会话的能力绑定（见顶层 [AgentSessionBinder] 的说明）。
+   */
+  @Volatile private var agentSessionBinder: AgentSessionBinder? = null
+
+  /**
+   * 【B1】注册 / 注销 Agent 会话绑定。传 null 即注销（页面销毁时必须调用，避免泄漏）。
+   */
+  fun bindAgentSession(binder: AgentSessionBinder?) {
+    agentSessionBinder = binder
+  }
+
+  /**
+   * 【B1】统一出口：任何来源的系统提示词，进引擎前都要过这里。
+   *
+   * 失败一律回退原文 —— 装饰是为了「更好用」，绝不能因为它让会话建不起来。
+   */
+  private suspend fun decorateSystemInstruction(task: Task, raw: String?): String? {
+    if (raw == null) return null
+    val binder = agentSessionBinder ?: return raw
+    return try {
+      binder.decorateSystemPrompt(task, raw)
+    } catch (e: Exception) {
+      Log.e(TAG, "decorateSystemPrompt failed for task=${task.id}; fall back to raw prompt.", e)
+      raw
+    }
+  }
+
   /** 【T04】当前会话绑定的「特调记录」id；null / 空串表示未绑定（走 task 全局提示词）。 */
   private val _boundProfileId = MutableStateFlow<String?>(null)
   val boundProfileId = _boundProfileId.asStateFlow()
@@ -302,7 +357,8 @@ open class LlmChatViewModelBase(
         // 于是「选什么都一样」，切换记录时还会继续用上一条的 —— 就是用户看到的串台。
         if (model != null) {
           // 还没初始化的模型：挂成待应用值，由 initializeModel 直接采用。
-          model.pendingSystemInstruction = prompt
+          // 【B1】这条路径同样要展开，否则「打开一条 Agent 特调记录」时技能清单又丢了。
+          model.pendingSystemInstruction = decorateSystemInstruction(task, prompt) ?: prompt
           // 已保活的模型：立刻重建会话上下文（只重置 KV cache，不重载权重）。
           applySystemPromptToEngine(task = task, model = model, desired = prompt)
         }
@@ -334,7 +390,10 @@ open class LlmChatViewModelBase(
         Log.d(TAG, "Model '${model.name}' not initialized yet; prompt deferred to initializeModel.")
         return
       }
-      if (model.appliedSystemInstruction == desired) {
+      // 【B1】比对时用「展开后」的提示词：引擎里存的就是展开后的值，
+      // 拿用户原文去比永远不相等，会导致每次进页面都白重建一次会话（几秒卡顿）。
+      val desiredExpanded = decorateSystemInstruction(task, desired) ?: desired
+      if (model.appliedSystemInstruction == desiredExpanded) {
         Log.d(TAG, "Engine already uses the desired system prompt; no rebind needed.")
         return
       }
@@ -810,6 +869,11 @@ open class LlmChatViewModelBase(
     viewModelScope.launch(Dispatchers.Default) {
       setIsResettingSession(true)
       try {
+        // 【B1】取一次快照：binder 是 @Volatile，两次读取之间可能被页面销毁置空。
+        val agentBinder = agentSessionBinder
+        // 【B1】先展开提示词（技能/工具清单注入），再往下走。
+        // 放在 clearHistory 之前：即便后面失败，提示词也已经是对的。
+        val effectiveInstruction = decorateSystemInstruction(task, systemInstruction)
         if (clearHistory) {
           clearAllMessages(model = model)
         }
@@ -827,18 +891,26 @@ open class LlmChatViewModelBase(
           AgentRuntimeConfig(
             model = model,
             taskId = task.id,
-            actionChannel = actionChannel,
+            // 【B1】Agent 页注册了 binder 时，即使调用方没传 actionChannel 也补上 ——
+            // 否则技能进度 / 权限询问发不回界面，用户看到的就是「一直转圈」。
+            actionChannel = actionChannel ?: agentBinder?.actionChannel,
             supportImage = supportImage,
             supportAudio = supportAudio,
-            enableConversationConstrainedDecoding = enableConversationConstrainedDecoding,
-            systemInstruction = systemInstruction,
+            // 【B1】同理补上约束解码，保证工具调用参数是合法 JSON。
+            enableConversationConstrainedDecoding =
+              enableConversationConstrainedDecoding ||
+                (agentBinder?.enableConstrainedDecoding == true),
+            // 【B1 核心】所有入口的提示词在这里统一展开，技能清单绕不过去。
+            systemInstruction = effectiveInstruction,
             initialMessages = initialMessages,
           )
         runtimeExecutor.resetSession(config = config)
 
         // 【T06】记录引擎当前生效的提示词，供下次进入其他会话记录时比对。
+        // 【B1】这里必须记展开后的值：`applySystemPromptToEngine` 拿它做等值比较，
+        // 若记的是未展开的原文，每次进页面都会误判「不一致」而白重建一次会话。
         // 传 null 时执行器实际注入的是空串，这里同步记成空串，语义保持一致。
-        model.appliedSystemInstruction = systemInstruction ?: ""
+        model.appliedSystemInstruction = effectiveInstruction ?: ""
       } catch (e: Exception) {
         // 【健壮性】重置失败不能把界面留在「重置中」状态，否则输入框会永久禁用。
         Log.e(TAG, "resetSession failed for task=${task.id}", e)
